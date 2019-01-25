@@ -3,66 +3,85 @@
 # Pattern[U, N] ::
 #     Disjunction[?U, ?N]
 Pattern ->
-    Disjunction
+    Disjunction     {% Pattern_Disjunction %}
 Pattern_U ->
-    Disjunction_U
+    Disjunction_U   {% Pattern_Disjunction %}
 Pattern_N ->
-    Disjunction_N
+    Disjunction_N   {% Pattern_Disjunction %}
 Pattern_U_N ->
-    Disjunction_U_N
+    Disjunction_U_N {% Pattern_Disjunction %}
+@{%
+const Pattern_Disjunction = ([Disjunction]) => ({ type: 'Pattern', Disjunction });
+%}
 
 # Disjunction[U, N] ::
 #     Alternative[?U, ?N]
 #     Alternative[?U, ?N] | Disjunction[?U, ?N]
 Disjunction ->
-    Alternative
-  | Alternative  "|" Disjunction
+    Alternative                 {% Disjunction_Alternative %}
+  | Alternative "|" Disjunction {% Disjunction_Alternative_Disjunction %}
 Disjunction_U ->
-    Alternative_U
-  | Alternative_U  "|" Disjunction_U
+    Alternative_U                   {% Disjunction_Alternative %}
+  | Alternative_U "|" Disjunction_U {% Disjunction_Alternative_Disjunction %}
 Disjunction_N ->
-    Alternative_N
-  | Alternative_N  "|" Disjunction_N
+    Alternative_N                   {% Disjunction_Alternative %}
+  | Alternative_N "|" Disjunction_N {% Disjunction_Alternative_Disjunction %}
 Disjunction_U_N ->
-    Alternative_U_N
-  | Alternative_U_N  "|" Disjunction_U_N
+    Alternative_U_N                      {% Disjunction_Alternative %}
+  | Alternative_U_N  "|" Disjunction_U_N {% Disjunction_Alternative_Disjunction %}
+@{%
+const Disjunction_Alternative = ([Alternative]) => ({ type: 'Disjunction', Alternatives: [Alternative] });
+const Disjunction_Alternative_Disjunction = ([Alternative, _, Disjunction]) => ({ type: 'Disjunction', Alternatives: [Alternative, ...Disjunction.Alternatives] });
+%}
 
 # Alternative[U, N] ::
 #     [empty]
 #     Alternative[?U, ?N] Term[?U, ?N]
 Alternative ->
-    null
-  | Alternative Term
+    null             {% Alternative_empty %}
+  | Alternative Term {% Alternative_Alternative_Term %}
 Alternative_U ->
-    null
-  | Alternative_U Term_U
+    null                 {% Alternative_empty %}
+  | Alternative_U Term_U {% Alternative_Alternative_Term %}
 Alternative_N ->
-    null
-  | Alternative_N Term_N
+    null                 {% Alternative_empty %}
+  | Alternative_N Term_N {% Alternative_Alternative_Term %}
 Alternative_U_N ->
-    null
-  | Alternative_U_N Term_U_N
+    null                     {% Alternative_empty %}
+  | Alternative_U_N Term_U_N {% Alternative_Alternative_Term %}
+@{%
+const Alternative_empty = () => ({ type: 'Alternative', Terms: [] });
+const Alternative_Alternative_Term = ([Alternative, Term]) => {
+  Alternative.Terms.push(Term);
+  return Alternative;
+};
+%}
 
 # Term[U, N] ::
 #     Assertion[?U, ?N]
 #     Atom[?U, ?N]
 #     Atom[?U, ?N] Quantifier
 Term ->
-    Assertion
-  | Atom
-  | Atom Quantifier
+    Assertion       {% Term_Assertion %}
+  | Atom            {% Term_Atom %}
+  | Atom Quantifier {% Term_Atom_Quantifier %}
 Term_U ->
-    Assertion_U
-  | Atom_U
-  | Atom_U Quantifier
+    Assertion_U       {% Term_Assertion %}
+  | Atom_U            {% Term_Atom %}
+  | Atom_U Quantifier {% Term_Atom_Quantifier %}
 Term_N ->
-    Assertion_N
-  | Atom_N
-  | Atom_N Quantifier
+    Assertion_N       {% Term_Assertion %}
+  | Atom_N            {% Term_Atom %}
+  | Atom_N Quantifier {% Term_Atom_Quantifier %}
 Term_U_N ->
-    Assertion_U_N
-  | Atom_U_N
-  | Atom_U_N Quantifier
+    Assertion_U_N       {% Term_Assertion %}
+  | Atom_U_N            {% Term_Atom %}
+  | Atom_U_N Quantifier {% Term_Atom_Quantifier %}
+@{%
+const Term_Assertion = ([Assertion]) => ({ type: 'Term', subtype: 'Assertion', Assertion });
+const Term_Atom = ([Atom]) => ({ type: 'Term', subtype: 'Atom', Atom });
+const Term_Atom_Quantifier = ([Atom, Quantifier]) => ({ type: 'Term', subtype: 'AtomQuantifier', Atom, Quantifier });
+%}
 
 # Assertion[U, N]::
 #     ^
@@ -74,48 +93,52 @@ Term_U_N ->
 #     (?<= Disjunction[?U, ?N] )
 #     (?<! Disjunction[?U, ?N] )
 Assertion ->
-    "^"
-  | "$"
-  | "\\b"
-  | "\\B"
-  | "(?=" Disjunction ")"
-  | "(?!" Disjunction ")"
-  | "(?<=" Disjunction ")"
-  | "(?<!" Disjunction ")"
+    "^"                    {% Assertion_nt %}
+  | "$"                    {% Assertion_nt %}
+  | "\\b"                  {% Assertion_nt %}
+  | "\\B"                  {% Assertion_nt %}
+  | "(?=" Disjunction ")"  {% Assertion_Disjunction %}
+  | "(?!" Disjunction ")"  {% Assertion_Disjunction %}
+  | "(?<=" Disjunction ")" {% Assertion_Disjunction %}
+  | "(?<!" Disjunction ")" {% Assertion_Disjunction %}
 Assertion_U ->
-    "^"
-  | "$"
-  | "\\b"
-  | "\\B"
-  | "(?=" Disjunction_U ")"
-  | "(?!" Disjunction_U ")"
-  | "(?<=" Disjunction_U ")"
-  | "(?<!" Disjunction_U ")"
+    "^"                      {% Assertion_nt %}
+  | "$"                      {% Assertion_nt %}
+  | "\\b"                    {% Assertion_nt %}
+  | "\\B"                    {% Assertion_nt %}
+  | "(?=" Disjunction_U ")"  {% Assertion_Disjunction %}
+  | "(?!" Disjunction_U ")"  {% Assertion_Disjunction %}
+  | "(?<=" Disjunction_U ")" {% Assertion_Disjunction %}
+  | "(?<!" Disjunction_U ")" {% Assertion_Disjunction %}
 Assertion_N ->
-    "^"
-  | "$"
-  | "\\b"
-  | "\\B"
-  | "(?=" Disjunction_N ")"
-  | "(?!" Disjunction_N ")"
-  | "(?<=" Disjunction_N ")"
-  | "(?<!" Disjunction_N ")"
+    "^"                      {% Assertion_nt %}
+  | "$"                      {% Assertion_nt %}
+  | "\\b"                    {% Assertion_nt %}
+  | "\\B"                    {% Assertion_nt %}
+  | "(?=" Disjunction_N ")"  {% Assertion_Disjunction %}
+  | "(?!" Disjunction_N ")"  {% Assertion_Disjunction %}
+  | "(?<=" Disjunction_N ")" {% Assertion_Disjunction %}
+  | "(?<!" Disjunction_N ")" {% Assertion_Disjunction %}
 Assertion_U_N ->
-    "^"
-  | "$"
-  | "\\b"
-  | "\\B"
-  | "(?=" Disjunction_U_N ")"
-  | "(?!" Disjunction_U_N ")"
-  | "(?<=" Disjunction_U_N ")"
-  | "(?<!" Disjunction_U_N ")"
+    "^"                        {% Assertion_nt %}
+  | "$"                        {% Assertion_nt %}
+  | "\\b"                      {% Assertion_nt %}
+  | "\\B"                      {% Assertion_nt %}
+  | "(?=" Disjunction_U_N ")"  {% Assertion_Disjunction %}
+  | "(?!" Disjunction_U_N ")"  {% Assertion_Disjunction %}
+  | "(?<=" Disjunction_U_N ")" {% Assertion_Disjunction %}
+  | "(?<!" Disjunction_U_N ")" {% Assertion_Disjunction %}
+@{%
+const Assertion_nt = ([ch]) => ({ type: 'Assertion', subtype: ch });
+const Assertion_Disjunction = ([ch, Disjunction]) => ({ type: 'Assertion', subtype: ch, Disjunction });
+%}
 
 # Quantifier ::
 #     QuantifierPrefix
 #     QuantifierPrefix ?
 Quantifier ->
-    QuantifierPrefix
-  | QuantifierPrefix "?"
+    QuantifierPrefix     {% ([QuantifierPrefix]) => ({ type: 'Quantifier', QuantifierPrefix, lazy: false }) %}
+  | QuantifierPrefix "?" {% ([QuantifierPrefix]) => ({ type: 'Quantifier', QuantifierPrefix, lazy: true }) %}
 
 
 # QuantifierPrefix ::
@@ -126,12 +149,15 @@ Quantifier ->
 #     { DecimalDigits , }
 #     { DecimalDigits , DecimalDigits }
 QuantifierPrefix ->
-    "*"
-  | "+"
-  | "?"
-  | "{" DecimalDigits "}"
-  | "{" DecimalDigits ",}"
-  | "{" DecimalDigits "," DecimalDigits "}"
+    "*" {% QuantifierPrefix_nt %}
+  | "+" {% QuantifierPrefix_nt %}
+  | "?" {% QuantifierPrefix_nt %}
+  | "{" DecimalDigits "}"  {% ([_, DecimalDigits]) => ({ type: 'QuantifierPrefix', subtype: 'fixed', DecimalDigits }) %}
+  | "{" DecimalDigits ",}" {% ([_, DecimalDigits]) => ({ type: 'QuantifierPrefix', subtype: 'start', DecimalDigits }) %}
+  | "{" DecimalDigits "," DecimalDigits "}" {% ([_, DecimalDigits1, c, DecimalDigits2]) => ({ type: 'QuantifierPrefix', subtype: 'range', DecimalDigits1, DecimalDigits2 }) %}
+@{%
+const QuantifierPrefix_nt = ([ch]) => ({ type: 'QuantifierPrefix', subtype: ch });
+%}
 
 # Atom[U, N] ::
 #     PatternCharacter
@@ -145,7 +171,7 @@ Atom ->
   | "."
   | "\\" AtomEscape
   | CharacterClass
-  | "(" GroupSpecifier Disjunction ")"
+  | "(" GroupSpecifier Disjunction ")" {% ([l, GroupSpecifier, Disjunction]) => ({ type: 'Atom', subtype: '(', GroupSpecifier, Disjunction }) %}
   | "(?:" Disjunction ")"
 Atom_U ->
     PatternCharacter
