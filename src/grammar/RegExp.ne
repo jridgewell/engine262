@@ -177,7 +177,7 @@ SyntaxCharacter ->
 # PatternCharacter ::
 #     SourceCharacter but not SyntaxCharacter
 PatternCharacter ->
-    SourceCharacter # TODO SourceCharacter but not SyntaxCharacter
+    SourceCharacter {% ([c], _, reject) => /[$^\\.*+?()[\]{}|]/.test(c) ? reject : { PatternCharacter: c } %}
 
 # AtomEscape[U, N] ::
 #     DecimalEscape
@@ -489,10 +489,10 @@ ClassAtom_U ->
 #   SourceCharacter but not one of \ or ] or -
 #   \ ClassEscape[?U]
 ClassAtomNoDash ->
-    SourceCharacter # TODO SourceCharacter but not one of \ or ] or -
+    SourceCharacter {% ([c], _, reject) => /[\\\]-]/.test(c) ? reject : c %}
   | "\\" ClassEscape
 ClassAtomNoDash_U ->
-    [^\\\]-]
+    SourceCharacter {% ([c], _, reject) => /[\\\]-]/.test(c) ? reject : c %}
   | "\\" ClassEscape_U
 
 # ClassEscape[U] ::
@@ -557,4 +557,4 @@ NonZeroDigit ->
 # SourceCharacter ::
 #     any Unicode code point
 SourceCharacter ->
-    .
+    . {% id %}

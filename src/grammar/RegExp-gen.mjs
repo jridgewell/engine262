@@ -129,7 +129,7 @@ let ParserRules = [
     {"name": "Atom_U_N$string$1", "symbols": [{"literal":"("}, {"literal":"?"}, {"literal":":"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "Atom_U_N", "symbols": ["Atom_U_N$string$1", "Disjunction_U_N", {"literal":")"}]},
     {"name": "SyntaxCharacter", "symbols": [/[$^\\.*+?()[\]{}|]/]},
-    {"name": "PatternCharacter", "symbols": ["SourceCharacter"]},
+    {"name": "PatternCharacter", "symbols": ["SourceCharacter"], "postprocess": ([c], _, reject) => /[$^\\.*+?()[\]{}|]/.test(c) ? reject : { PatternCharacter: c }},
     {"name": "AtomEscape", "symbols": ["DecimalEscape"]},
     {"name": "AtomEscape", "symbols": ["CharacterClassEscape"]},
     {"name": "AtomEscape", "symbols": ["CharacterEscape"]},
@@ -257,9 +257,9 @@ let ParserRules = [
     {"name": "ClassAtom", "symbols": ["ClassAtomNoDash"]},
     {"name": "ClassAtom_U", "symbols": [{"literal":"-"}]},
     {"name": "ClassAtom_U", "symbols": ["ClassAtomNoDash_U"]},
-    {"name": "ClassAtomNoDash", "symbols": ["SourceCharacter"]},
+    {"name": "ClassAtomNoDash", "symbols": ["SourceCharacter"], "postprocess": ([c], _, reject) => /[\\\]-]/.test(c) ? reject : c},
     {"name": "ClassAtomNoDash", "symbols": [{"literal":"\\"}, "ClassEscape"]},
-    {"name": "ClassAtomNoDash_U", "symbols": [/[^\\\]-]/]},
+    {"name": "ClassAtomNoDash_U", "symbols": ["SourceCharacter"], "postprocess": ([c], _, reject) => /[\\\]-]/.test(c) ? reject : c},
     {"name": "ClassAtomNoDash_U", "symbols": [{"literal":"\\"}, "ClassEscape_U"]},
     {"name": "ClassEscape", "symbols": [{"literal":"b"}]},
     {"name": "ClassEscape", "symbols": ["CharacterClassEscape"]},
@@ -278,7 +278,7 @@ let ParserRules = [
     {"name": "HexDigits", "symbols": ["HexDigit"]},
     {"name": "HexDigits", "symbols": ["HexDigits", "HexDigit"]},
     {"name": "NonZeroDigit", "symbols": [/[1-9]/]},
-    {"name": "SourceCharacter", "symbols": [/./]}
+    {"name": "SourceCharacter", "symbols": [/./], "postprocess": id}
 ];
 let ParserStart = "Pattern";
 export default { Lexer, ParserRules, ParserStart };
