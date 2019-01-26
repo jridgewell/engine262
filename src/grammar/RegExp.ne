@@ -174,47 +174,55 @@ const QuantifierPrefix_nt = ([ch]) => ({ type: 'QuantifierPrefix', subtype: ch }
 #     ( GroupSpecifier[?U] Disjunction[?U, ?N] )
 #     ( ? : Disjunction[?U, ?N] )
 Atom ->
-    PatternCharacter                   {% id %}
-  | "."                                {% Atom_dot %}
-  | "\\" AtomEscape                    {% Atom_escape %}
-  | CharacterClass                     {% id %}
-  | "(" GroupSpecifier Disjunction ")" {% Atom_group %}
-  | "(?:" Disjunction ")"              {% Atom_nonCapturingGroup %}
+    PatternCharacter                   {% Atom_PatternCharacter %}
+  | "."                                {% Atom_Dot %}
+  | "\\" AtomEscape                    {% Atom_Escape %}
+  | CharacterClass                     {% Atom_CharacterClass %}
+  | "(" GroupSpecifier Disjunction ")" {% Atom_Group %}
+  | "(?:" Disjunction ")"              {% Atom_NonCapturingGroup %}
 Atom_U ->
-    PatternCharacter                       {% id %}
-  | "."                                    {% Atom_dot %}
-  | "\\" AtomEscape_U                      {% Atom_escape %}
-  | CharacterClass_U                       {% id %}
-  | "(" GroupSpecifier_U Disjunction_U ")" {% Atom_group %}
-  | "(?:" Disjunction_U ")"                {% Atom_nonCapturingGroup %}
+    PatternCharacter                       {% Atom_PatternCharacter %}
+  | "."                                    {% Atom_Dot %}
+  | "\\" AtomEscape_U                      {% Atom_Escape %}
+  | CharacterClass_U                       {% Atom_CharacterClass %}
+  | "(" GroupSpecifier_U Disjunction_U ")" {% Atom_Group %}
+  | "(?:" Disjunction_U ")"                {% Atom_NonCapturingGroup %}
 Atom_N ->
-    PatternCharacter                     {% id %}
-  | "."                                  {% Atom_dot %}
-  | "\\" AtomEscape_N                    {% Atom_escape %}
-  | CharacterClass                       {% id %}
-  | "(" GroupSpecifier Disjunction_N ")" {% Atom_group %}
-  | "(?:" Disjunction_N ")"              {% Atom_nonCapturingGroup %}
+    PatternCharacter                     {% Atom_PatternCharacter %}
+  | "."                                  {% Atom_Dot %}
+  | "\\" AtomEscape_N                    {% Atom_Escape %}
+  | CharacterClass                       {% Atom_CharacterClass %}
+  | "(" GroupSpecifier Disjunction_N ")" {% Atom_Group %}
+  | "(?:" Disjunction_N ")"              {% Atom_NonCapturingGroup %}
 Atom_U_N ->
-    PatternCharacter                         {% id %}
-  | "."                                      {% Atom_dot %}
-  | "\\" AtomEscape_U_N                      {% Atom_escape %}
-  | CharacterClass_U                         {% id %}
-  | "(" GroupSpecifier_U Disjunction_U_N ")" {% Atom_group %}
-  | "(?:" Disjunction_U_N ")"                {% Atom_nonCapturingGroup %}
+    PatternCharacter                         {% Atom_PatternCharacter %}
+  | "."                                      {% Atom_Dot %}
+  | "\\" AtomEscape_U_N                      {% Atom_Escape %}
+  | CharacterClass_U                         {% Atom_CharacterClass %}
+  | "(" GroupSpecifier_U Disjunction_U_N ")" {% Atom_Group %}
+  | "(?:" Disjunction_U_N ")"                {% Atom_NonCapturingGroup %}
 @{%
-function Atom_dot() {
+function Atom_PatternCharacter([c]) {
+  return { type: 'Atom', subtype: 'PatternCharacter', PatternCharacter: c };
+}
+
+function Atom_Dot() {
   return { type: 'Atom', subtype: 'AtomDot' };
 }
 
-function Atom_escape([l, AtomEscape]) {
+function Atom_Escape([l, AtomEscape]) {
   return { type: 'Atom', subtype: 'AtomEscape', AtomEscape };
 }
 
-function Atom_group([l, GroupSpecifier, Disjunction]) {
+function Atom_CharacterClass([CharacterClass]) {
+  return { type: 'Atom', subtype: 'CharacterClass', CharacterClass };
+}
+
+function Atom_Group([l, GroupSpecifier, Disjunction]) {
   return { type: 'Atom', subtype: 'AtomGroup', capturing: true, name: GroupSpecifier, Disjunction };
 }
 
-function Atom_nonCapturingGroup([l, Disjunction]) {
+function Atom_NonCapturingGroup([l, Disjunction]) {
   return { type: 'Atom', subtype: 'AtomGroup', capturing: false, Disjunction };
 }
 %}
@@ -222,12 +230,12 @@ function Atom_nonCapturingGroup([l, Disjunction]) {
 # SyntaxCharacter :: one of
 #     ^$\.*+?()[]{}|
 SyntaxCharacter ->
-    [$^\\.*+?()[\]{}|] {% ([c]) => ({ SyntaxCharacter: c }) %}
+    [$^\\.*+?()[\]{}|] {% id %}
 
 # PatternCharacter ::
 #     SourceCharacter but not SyntaxCharacter
 PatternCharacter ->
-    %PatternCharacter {% ([c]) => ({ PatternCharacter: c }) %}
+    %PatternCharacter {% id %}
 @{%
 const PatternCharacter = { test: /./.test.bind(/[^^$\\.*+?()[\]{}|]/u) };
 %}

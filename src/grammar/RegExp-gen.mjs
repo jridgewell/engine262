@@ -37,19 +37,27 @@ const Assertion_Disjunction = ([ch, Disjunction]) => ({ type: 'Assertion', subty
 const QuantifierPrefix_nt = ([ch]) => ({ type: 'QuantifierPrefix', subtype: ch });
 
 
-function Atom_dot() {
+function Atom_PatternCharacter([c]) {
+  return { type: 'Atom', subtype: 'PatternCharacter', PatternCharacter: c };
+}
+
+function Atom_Dot() {
   return { type: 'Atom', subtype: 'AtomDot' };
 }
 
-function Atom_escape([l, AtomEscape]) {
+function Atom_Escape([l, AtomEscape]) {
   return { type: 'Atom', subtype: 'AtomEscape', AtomEscape };
 }
 
-function Atom_group([l, GroupSpecifier, Disjunction]) {
+function Atom_CharacterClass([CharacterClass]) {
+  return { type: 'Atom', subtype: 'CharacterClass', CharacterClass };
+}
+
+function Atom_Group([l, GroupSpecifier, Disjunction]) {
   return { type: 'Atom', subtype: 'AtomGroup', capturing: true, name: GroupSpecifier, Disjunction };
 }
 
-function Atom_nonCapturingGroup([l, Disjunction]) {
+function Atom_NonCapturingGroup([l, Disjunction]) {
   return { type: 'Atom', subtype: 'AtomGroup', capturing: false, Disjunction };
 }
 
@@ -362,36 +370,36 @@ let ParserRules = [
     {"name": "QuantifierPrefix$string$1", "symbols": [{"literal":","}, {"literal":"}"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "QuantifierPrefix", "symbols": [{"literal":"{"}, "DecimalDigits", "QuantifierPrefix$string$1"], "postprocess": ([_, DecimalDigits]) => ({ type: 'QuantifierPrefix', subtype: 'start', DecimalDigits })},
     {"name": "QuantifierPrefix", "symbols": [{"literal":"{"}, "DecimalDigits", {"literal":","}, "DecimalDigits", {"literal":"}"}], "postprocess": ([_, DecimalDigits1, c, DecimalDigits2]) => ({ type: 'QuantifierPrefix', subtype: 'range', DecimalDigits1, DecimalDigits2 })},
-    {"name": "Atom", "symbols": ["PatternCharacter"], "postprocess": id},
-    {"name": "Atom", "symbols": [{"literal":"."}], "postprocess": Atom_dot},
-    {"name": "Atom", "symbols": [{"literal":"\\"}, "AtomEscape"], "postprocess": Atom_escape},
-    {"name": "Atom", "symbols": ["CharacterClass"], "postprocess": id},
-    {"name": "Atom", "symbols": [{"literal":"("}, "GroupSpecifier", "Disjunction", {"literal":")"}], "postprocess": Atom_group},
+    {"name": "Atom", "symbols": ["PatternCharacter"], "postprocess": Atom_PatternCharacter},
+    {"name": "Atom", "symbols": [{"literal":"."}], "postprocess": Atom_Dot},
+    {"name": "Atom", "symbols": [{"literal":"\\"}, "AtomEscape"], "postprocess": Atom_Escape},
+    {"name": "Atom", "symbols": ["CharacterClass"], "postprocess": Atom_CharacterClass},
+    {"name": "Atom", "symbols": [{"literal":"("}, "GroupSpecifier", "Disjunction", {"literal":")"}], "postprocess": Atom_Group},
     {"name": "Atom$string$1", "symbols": [{"literal":"("}, {"literal":"?"}, {"literal":":"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "Atom", "symbols": ["Atom$string$1", "Disjunction", {"literal":")"}], "postprocess": Atom_nonCapturingGroup},
-    {"name": "Atom_U", "symbols": ["PatternCharacter"], "postprocess": id},
-    {"name": "Atom_U", "symbols": [{"literal":"."}], "postprocess": Atom_dot},
-    {"name": "Atom_U", "symbols": [{"literal":"\\"}, "AtomEscape_U"], "postprocess": Atom_escape},
-    {"name": "Atom_U", "symbols": ["CharacterClass_U"], "postprocess": id},
-    {"name": "Atom_U", "symbols": [{"literal":"("}, "GroupSpecifier_U", "Disjunction_U", {"literal":")"}], "postprocess": Atom_group},
+    {"name": "Atom", "symbols": ["Atom$string$1", "Disjunction", {"literal":")"}], "postprocess": Atom_NonCapturingGroup},
+    {"name": "Atom_U", "symbols": ["PatternCharacter"], "postprocess": Atom_PatternCharacter},
+    {"name": "Atom_U", "symbols": [{"literal":"."}], "postprocess": Atom_Dot},
+    {"name": "Atom_U", "symbols": [{"literal":"\\"}, "AtomEscape_U"], "postprocess": Atom_Escape},
+    {"name": "Atom_U", "symbols": ["CharacterClass_U"], "postprocess": Atom_CharacterClass},
+    {"name": "Atom_U", "symbols": [{"literal":"("}, "GroupSpecifier_U", "Disjunction_U", {"literal":")"}], "postprocess": Atom_Group},
     {"name": "Atom_U$string$1", "symbols": [{"literal":"("}, {"literal":"?"}, {"literal":":"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "Atom_U", "symbols": ["Atom_U$string$1", "Disjunction_U", {"literal":")"}], "postprocess": Atom_nonCapturingGroup},
-    {"name": "Atom_N", "symbols": ["PatternCharacter"], "postprocess": id},
-    {"name": "Atom_N", "symbols": [{"literal":"."}], "postprocess": Atom_dot},
-    {"name": "Atom_N", "symbols": [{"literal":"\\"}, "AtomEscape_N"], "postprocess": Atom_escape},
-    {"name": "Atom_N", "symbols": ["CharacterClass"], "postprocess": id},
-    {"name": "Atom_N", "symbols": [{"literal":"("}, "GroupSpecifier", "Disjunction_N", {"literal":")"}], "postprocess": Atom_group},
+    {"name": "Atom_U", "symbols": ["Atom_U$string$1", "Disjunction_U", {"literal":")"}], "postprocess": Atom_NonCapturingGroup},
+    {"name": "Atom_N", "symbols": ["PatternCharacter"], "postprocess": Atom_PatternCharacter},
+    {"name": "Atom_N", "symbols": [{"literal":"."}], "postprocess": Atom_Dot},
+    {"name": "Atom_N", "symbols": [{"literal":"\\"}, "AtomEscape_N"], "postprocess": Atom_Escape},
+    {"name": "Atom_N", "symbols": ["CharacterClass"], "postprocess": Atom_CharacterClass},
+    {"name": "Atom_N", "symbols": [{"literal":"("}, "GroupSpecifier", "Disjunction_N", {"literal":")"}], "postprocess": Atom_Group},
     {"name": "Atom_N$string$1", "symbols": [{"literal":"("}, {"literal":"?"}, {"literal":":"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "Atom_N", "symbols": ["Atom_N$string$1", "Disjunction_N", {"literal":")"}], "postprocess": Atom_nonCapturingGroup},
-    {"name": "Atom_U_N", "symbols": ["PatternCharacter"], "postprocess": id},
-    {"name": "Atom_U_N", "symbols": [{"literal":"."}], "postprocess": Atom_dot},
-    {"name": "Atom_U_N", "symbols": [{"literal":"\\"}, "AtomEscape_U_N"], "postprocess": Atom_escape},
-    {"name": "Atom_U_N", "symbols": ["CharacterClass_U"], "postprocess": id},
-    {"name": "Atom_U_N", "symbols": [{"literal":"("}, "GroupSpecifier_U", "Disjunction_U_N", {"literal":")"}], "postprocess": Atom_group},
+    {"name": "Atom_N", "symbols": ["Atom_N$string$1", "Disjunction_N", {"literal":")"}], "postprocess": Atom_NonCapturingGroup},
+    {"name": "Atom_U_N", "symbols": ["PatternCharacter"], "postprocess": Atom_PatternCharacter},
+    {"name": "Atom_U_N", "symbols": [{"literal":"."}], "postprocess": Atom_Dot},
+    {"name": "Atom_U_N", "symbols": [{"literal":"\\"}, "AtomEscape_U_N"], "postprocess": Atom_Escape},
+    {"name": "Atom_U_N", "symbols": ["CharacterClass_U"], "postprocess": Atom_CharacterClass},
+    {"name": "Atom_U_N", "symbols": [{"literal":"("}, "GroupSpecifier_U", "Disjunction_U_N", {"literal":")"}], "postprocess": Atom_Group},
     {"name": "Atom_U_N$string$1", "symbols": [{"literal":"("}, {"literal":"?"}, {"literal":":"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "Atom_U_N", "symbols": ["Atom_U_N$string$1", "Disjunction_U_N", {"literal":")"}], "postprocess": Atom_nonCapturingGroup},
-    {"name": "SyntaxCharacter", "symbols": [/[$^\\.*+?()[\]{}|]/], "postprocess": ([c]) => ({ SyntaxCharacter: c })},
-    {"name": "PatternCharacter", "symbols": [PatternCharacter], "postprocess": ([c]) => ({ PatternCharacter: c })},
+    {"name": "Atom_U_N", "symbols": ["Atom_U_N$string$1", "Disjunction_U_N", {"literal":")"}], "postprocess": Atom_NonCapturingGroup},
+    {"name": "SyntaxCharacter", "symbols": [/[$^\\.*+?()[\]{}|]/], "postprocess": id},
+    {"name": "PatternCharacter", "symbols": [PatternCharacter], "postprocess": id},
     {"name": "AtomEscape", "symbols": ["DecimalEscape"], "postprocess": AtomEscape_DecimalEscape},
     {"name": "AtomEscape", "symbols": ["CharacterClassEscape"], "postprocess": AtomEscape_CharacterClassEscape},
     {"name": "AtomEscape", "symbols": ["CharacterEscape"], "postprocess": AtomEscape_CharacterEscape},

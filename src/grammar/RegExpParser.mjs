@@ -98,8 +98,17 @@ visitor.Term = (node, c) => {
 
 visitor.Atom = (node, c) => {
   switch (node.subtype) {
+    case 'AtomEscape':
+      c(node.AtomEscape);
+      break;
     case 'AtomGroup':
       c(node.Disjunction);
+      break;
+    case 'CharacterClass':
+      c(node.CharacterClass);
+      break;
+    case 'AtomDot':
+    case 'PatternCharacter':
       break;
     default:
       throw new Error(`unhandled subtype Atom:${node.subtype}`);
