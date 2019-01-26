@@ -1,7 +1,7 @@
+import util from 'util';
 import nearley from 'nearley';
 import grammar from './src/grammar/RegExp-gen.mjs';
 import { registerTokens } from './src/grammar/lookaheads.mjs';
-import util from 'util';
 
 util.inspect.defaultOptions.depth = Infinity;
 
