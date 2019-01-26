@@ -45,7 +45,35 @@ export function parseRegExp(tokens, options) {
   if (results.length > 1) {
     throw new Error('ambiguity');
   }
-  return results[0];
+
+  const pattern = results[0];
+
+  let nCapturingParens = 0;
+  const groupSpecifierNames = new Set();
+  walk(pattern, {
+    Atom: (node) => {
+      if (node.subtype === 'AtomGroup' && node.capturing) {
+        nCapturingParens += 1;
+        if (node.name) {
+          if (groupSpecifierNames.has(node.name)) {
+            // It is a Syntax Error if Pattern contains multiple GroupSpecifiers whose enclosed RegExpIdentifierNames have the same StringValue.
+            throw new SyntaxError(`duplicate capture group name: ${node.name}`);
+          }
+          groupSpecifierNames.add(node.name);
+        }
+      }
+    },
+  });
+
+  if (nCapturingParens >= (2 ** 32) - 1) {
+    // It is a Syntax Error if NcapturingParens ≥ 232 - 1.
+    throw new SyntaxError('a RegExp may not contain more than 2^32-1 capturing parentheses');
+  }
+
+  return {
+    pattern,
+    nCapturingParens,
+  };
 }
 
 export function walk(rootNode, visitors) {
