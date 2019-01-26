@@ -6,7 +6,7 @@ import util from 'util';
 util.inspect.defaultOptions.depth = Infinity;
 
 {
-  const parser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar));
+  const parser = new nearley.Parser(nearley.Grammar.fromCompiled({ ...grammar, ParserStart: 'Pattern_U' }));
   registerTokens('RegExp', [...process.argv[2]]);
   parser.feed([...process.argv[2]]);
   console.log(parser.results);

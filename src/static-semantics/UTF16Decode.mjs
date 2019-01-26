@@ -1,4 +1,4 @@
-import { Assert } from '../abstract-ops/all.mjs';
+import { Assert } from '../abstract-ops/notational-conventions.mjs';
 
 // 10.1.2 #sec-utf16decode
 export function UTF16Decode(lead, trail) {

@@ -3,7 +3,9 @@
 function id(x) { return x[0]; }
 
 import { lookahead as rawLookahead } from './lookaheads.mjs';
-const lookahead = (start, length) => rawLookahead('RegExp', start, length).join();
+import { UTF16Decode } from '../static-semantics/UTF16Decode.mjs';
+import { UTF16Encoding } from '../static-semantics/UTF16Encoding.mjs';
+const lookahead = (start, length) => rawLookahead('RegExp', start, length).join('');
 
 
 function c(val) {
@@ -35,6 +37,31 @@ const Assertion_Disjunction = ([ch, Disjunction]) => ({ type: 'Assertion', subty
 
 
 const QuantifierPrefix_nt = ([ch]) => ({ type: 'QuantifierPrefix', subtype: ch });
+
+
+function Atom_PatternCharacter([PatternCharacter]) {
+  return { type: 'Atom', subtype: 'PatternCharacter', PatternCharacter };
+}
+
+function Atom_Dot([nt]) {
+  return { type: 'Atom', subtype: nt };
+}
+
+function Atom_Escape([nt, AtomEscape]) {
+  return { type: 'Atom', subtype: nt, AtomEscape };
+}
+
+function Atom_CharacterClass([CharacterClass]) {
+  return { type: 'Atom', subtype: 'CharacterClass', CharacterClass };
+}
+
+function Atom_Group([nt, GroupSpecifier, Disjunction]) {
+  return { type: 'Atom', subtype: nt, GroupSpecifier, Disjunction };
+}
+
+function Atom_Grouping([nt, Disjunction]) {
+  return { type: 'Atom', subtype: nt, Disjunction };
+}
 
 
 const PatternCharacter = { test: /./.test.bind(/[^^$\\.*+?()[\]{}|]/u) };
@@ -82,6 +109,21 @@ function CharacterEscape_RegExpUnicodeEscapeSequence([RegExpUnicodeEscapeSequenc
 
 function CharacterEscape_IdentityEscape([IdentityEscape]) {
   return { type: 'CharacterEscape', subtype: 'IdentityEscape', IdentityEscape };
+}
+
+
+function GroupSpecifier_Semantics([_, GroupName]) {
+  return { type: 'GroupSpecifier', GroupName};
+}
+
+
+function GroupName_Semantics([_, RegExpIdentifierName]) {
+  return RegExpIdentifierName;
+}
+
+
+function RegExpIdentifier_Escape([_, RegExpUnicodeEscapeSequence]) {
+  return String.fromCharCode(...UTF16Encoding(RegExpUnicodeEscapeSequence));
 }
 
 
@@ -240,40 +282,40 @@ let ParserRules = [
     {"name": "QuantifierPrefix", "symbols": [{"literal":"*"}], "postprocess": QuantifierPrefix_nt},
     {"name": "QuantifierPrefix", "symbols": [{"literal":"+"}], "postprocess": QuantifierPrefix_nt},
     {"name": "QuantifierPrefix", "symbols": [{"literal":"?"}], "postprocess": QuantifierPrefix_nt},
-    {"name": "QuantifierPrefix", "symbols": [{"literal":"{"}, "DecimalDigits", {"literal":"}"}], "postprocess": ([_, DecimalDigits]) => ({ type: 'QuantifierPrefix', subtype: 'fixed', DecimalDigits })},
+    {"name": "QuantifierPrefix", "symbols": [{"literal":"{"}, "DecimalDigits", {"literal":"}"}], "postprocess": ([_, [DecimalDigits]]) => ({ type: 'QuantifierPrefix', subtype: 'fixed', DecimalDigits })},
     {"name": "QuantifierPrefix$string$1", "symbols": [{"literal":","}, {"literal":"}"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "QuantifierPrefix", "symbols": [{"literal":"{"}, "DecimalDigits", "QuantifierPrefix$string$1"], "postprocess": ([_, DecimalDigits]) => ({ type: 'QuantifierPrefix', subtype: 'start', DecimalDigits })},
-    {"name": "QuantifierPrefix", "symbols": [{"literal":"{"}, "DecimalDigits", {"literal":","}, "DecimalDigits", {"literal":"}"}], "postprocess": ([_, DecimalDigits1, c, DecimalDigits2]) => ({ type: 'QuantifierPrefix', subtype: 'range', DecimalDigits1, DecimalDigits2 })},
-    {"name": "Atom", "symbols": ["PatternCharacter"], "postprocess": id},
-    {"name": "Atom", "symbols": [{"literal":"."}]},
-    {"name": "Atom", "symbols": [{"literal":"\\"}, "AtomEscape"]},
-    {"name": "Atom", "symbols": ["CharacterClass"]},
-    {"name": "Atom", "symbols": [{"literal":"("}, "GroupSpecifier", "Disjunction", {"literal":")"}], "postprocess": ([l, GroupSpecifier, Disjunction]) => ({ type: 'Atom', subtype: '(', GroupSpecifier, Disjunction })},
+    {"name": "QuantifierPrefix", "symbols": [{"literal":"{"}, "DecimalDigits", "QuantifierPrefix$string$1"], "postprocess": ([_, [DecimalDigits]]) => ({ type: 'QuantifierPrefix', subtype: 'start', DecimalDigits })},
+    {"name": "QuantifierPrefix", "symbols": [{"literal":"{"}, "DecimalDigits", {"literal":","}, "DecimalDigits", {"literal":"}"}], "postprocess": ([_, [DecimalDigits1], c, [DecimalDigits2]]) => ({ type: 'QuantifierPrefix', subtype: 'range', DecimalDigits1, DecimalDigits2 })},
+    {"name": "Atom", "symbols": ["PatternCharacter"], "postprocess": Atom_PatternCharacter},
+    {"name": "Atom", "symbols": [{"literal":"."}], "postprocess": Atom_Dot},
+    {"name": "Atom", "symbols": [{"literal":"\\"}, "AtomEscape"], "postprocess": Atom_Escape},
+    {"name": "Atom", "symbols": ["CharacterClass"], "postprocess": Atom_CharacterClass},
+    {"name": "Atom", "symbols": [{"literal":"("}, "GroupSpecifier", "Disjunction", {"literal":")"}], "postprocess": Atom_Group},
     {"name": "Atom$string$1", "symbols": [{"literal":"("}, {"literal":"?"}, {"literal":":"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "Atom", "symbols": ["Atom$string$1", "Disjunction", {"literal":")"}]},
-    {"name": "Atom_U", "symbols": ["PatternCharacter"]},
-    {"name": "Atom_U", "symbols": [{"literal":"."}]},
-    {"name": "Atom_U", "symbols": [{"literal":"\\"}, "AtomEscape_U"]},
-    {"name": "Atom_U", "symbols": ["CharacterClass_U"]},
-    {"name": "Atom_U", "symbols": [{"literal":"("}, "GroupSpecifier_U", "Disjunction_U", {"literal":")"}]},
+    {"name": "Atom", "symbols": ["Atom$string$1", "Disjunction", {"literal":")"}], "postprocess": Atom_Grouping},
+    {"name": "Atom_U", "symbols": ["PatternCharacter"], "postprocess": Atom_PatternCharacter},
+    {"name": "Atom_U", "symbols": [{"literal":"."}], "postprocess": Atom_Dot},
+    {"name": "Atom_U", "symbols": [{"literal":"\\"}, "AtomEscape_U"], "postprocess": Atom_Escape},
+    {"name": "Atom_U", "symbols": ["CharacterClass_U"], "postprocess": Atom_CharacterClass},
+    {"name": "Atom_U", "symbols": [{"literal":"("}, "GroupSpecifier_U", "Disjunction_U", {"literal":")"}], "postprocess": Atom_Group},
     {"name": "Atom_U$string$1", "symbols": [{"literal":"("}, {"literal":"?"}, {"literal":":"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "Atom_U", "symbols": ["Atom_U$string$1", "Disjunction_U", {"literal":")"}]},
-    {"name": "Atom_N", "symbols": ["PatternCharacter"]},
-    {"name": "Atom_N", "symbols": [{"literal":"."}]},
-    {"name": "Atom_N", "symbols": [{"literal":"\\"}, "AtomEscape_N"]},
-    {"name": "Atom_N", "symbols": ["CharacterClass"]},
-    {"name": "Atom_N", "symbols": [{"literal":"("}, "GroupSpecifier", "Disjunction_N", {"literal":")"}]},
+    {"name": "Atom_U", "symbols": ["Atom_U$string$1", "Disjunction_U", {"literal":")"}], "postprocess": Atom_Grouping},
+    {"name": "Atom_N", "symbols": ["PatternCharacter"], "postprocess": Atom_PatternCharacter},
+    {"name": "Atom_N", "symbols": [{"literal":"."}], "postprocess": Atom_Dot},
+    {"name": "Atom_N", "symbols": [{"literal":"\\"}, "AtomEscape_N"], "postprocess": Atom_Escape},
+    {"name": "Atom_N", "symbols": ["CharacterClass"], "postprocess": Atom_CharacterClass},
+    {"name": "Atom_N", "symbols": [{"literal":"("}, "GroupSpecifier", "Disjunction_N", {"literal":")"}], "postprocess": Atom_Group},
     {"name": "Atom_N$string$1", "symbols": [{"literal":"("}, {"literal":"?"}, {"literal":":"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "Atom_N", "symbols": ["Atom_N$string$1", "Disjunction_N", {"literal":")"}]},
-    {"name": "Atom_U_N", "symbols": ["PatternCharacter"]},
-    {"name": "Atom_U_N", "symbols": [{"literal":"."}]},
-    {"name": "Atom_U_N", "symbols": [{"literal":"\\"}, "AtomEscape_U_N"]},
-    {"name": "Atom_U_N", "symbols": ["CharacterClass_U"]},
-    {"name": "Atom_U_N", "symbols": [{"literal":"("}, "GroupSpecifier_U", "Disjunction_U_N", {"literal":")"}]},
+    {"name": "Atom_N", "symbols": ["Atom_N$string$1", "Disjunction_N", {"literal":")"}], "postprocess": Atom_Grouping},
+    {"name": "Atom_U_N", "symbols": ["PatternCharacter"], "postprocess": Atom_PatternCharacter},
+    {"name": "Atom_U_N", "symbols": [{"literal":"."}], "postprocess": Atom_Dot},
+    {"name": "Atom_U_N", "symbols": [{"literal":"\\"}, "AtomEscape_U_N"], "postprocess": Atom_Escape},
+    {"name": "Atom_U_N", "symbols": ["CharacterClass_U"], "postprocess": Atom_CharacterClass},
+    {"name": "Atom_U_N", "symbols": [{"literal":"("}, "GroupSpecifier_U", "Disjunction_U_N", {"literal":")"}], "postprocess": Atom_Group},
     {"name": "Atom_U_N$string$1", "symbols": [{"literal":"("}, {"literal":"?"}, {"literal":":"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "Atom_U_N", "symbols": ["Atom_U_N$string$1", "Disjunction_U_N", {"literal":")"}]},
-    {"name": "SyntaxCharacter", "symbols": [/[$^\\.*+?()[\]{}|]/]},
-    {"name": "PatternCharacter", "symbols": [PatternCharacter], "postprocess": ([c]) => ({ PatternCharacter: c })},
+    {"name": "Atom_U_N", "symbols": ["Atom_U_N$string$1", "Disjunction_U_N", {"literal":")"}], "postprocess": Atom_Grouping},
+    {"name": "SyntaxCharacter", "symbols": [/[$^\\.*+?()[\]{}|]/], "postprocess": id},
+    {"name": "PatternCharacter", "symbols": [PatternCharacter], "postprocess": id},
     {"name": "AtomEscape", "symbols": ["DecimalEscape"], "postprocess": AtomEscape_DecimalEscape},
     {"name": "AtomEscape", "symbols": ["CharacterClassEscape"], "postprocess": AtomEscape_CharacterClassEscape},
     {"name": "AtomEscape", "symbols": ["CharacterEscape"], "postprocess": AtomEscape_CharacterEscape},
@@ -300,47 +342,47 @@ let ParserRules = [
     {"name": "CharacterEscape_U", "symbols": ["HexEscapeSequence"], "postprocess": CharacterEscape_HexEscapeSequence},
     {"name": "CharacterEscape_U", "symbols": ["RegExpUnicodeEscapeSequence_U"], "postprocess": CharacterEscape_RegExpUnicodeEscapeSequence},
     {"name": "CharacterEscape_U", "symbols": ["IdentityEscape_U"], "postprocess": CharacterEscape_IdentityEscape},
-    {"name": "ControlEscape", "symbols": [/[fnrtv]/]},
-    {"name": "ControlLetter", "symbols": [/[abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ]/]},
-    {"name": "GroupSpecifier", "symbols": []},
-    {"name": "GroupSpecifier", "symbols": [{"literal":"?"}, "GroupName"]},
-    {"name": "GroupSpecifier_U", "symbols": []},
-    {"name": "GroupSpecifier_U", "symbols": [{"literal":"?"}, "GroupName_U"]},
-    {"name": "GroupName", "symbols": [{"literal":"<"}, "RegExpIdentifierName", {"literal":">"}]},
-    {"name": "GroupName_U", "symbols": [{"literal":"<"}, "RegExpIdentifierName_U", {"literal":">"}]},
-    {"name": "RegExpIdentifierName", "symbols": ["RegExpIdentifierStart"]},
-    {"name": "RegExpIdentifierName", "symbols": ["RegExpIdentifierName", "RegExpIdentifierPart"]},
-    {"name": "RegExpIdentifierName_U", "symbols": ["RegExpIdentifierStart_U"]},
-    {"name": "RegExpIdentifierName_U", "symbols": ["RegExpIdentifierName_U", "RegExpIdentifierPart_U"]},
-    {"name": "RegExpIdentifierStart", "symbols": [/[a-zA-Z]/]},
-    {"name": "RegExpIdentifierStart", "symbols": [{"literal":"$"}]},
-    {"name": "RegExpIdentifierStart", "symbols": [{"literal":"_"}]},
-    {"name": "RegExpIdentifierStart", "symbols": [{"literal":"\\"}, "RegExpUnicodeEscapeSequence"]},
-    {"name": "RegExpIdentifierStart_U", "symbols": [/[a-zA-Z]/]},
-    {"name": "RegExpIdentifierStart_U", "symbols": [{"literal":"$"}]},
-    {"name": "RegExpIdentifierStart_U", "symbols": [{"literal":"_"}]},
-    {"name": "RegExpIdentifierStart_U", "symbols": [{"literal":"\\"}, "RegExpUnicodeEscapeSequence_U"]},
-    {"name": "RegExpIdentifierPart", "symbols": [/[a-zA-Z0-9]/]},
-    {"name": "RegExpIdentifierPart", "symbols": [{"literal":"$"}]},
-    {"name": "RegExpIdentifierPart", "symbols": [{"literal":"\\"}, "RegExpUnicodeEscapeSequence"]},
-    {"name": "RegExpIdentifierPart", "symbols": [/[\u200C]/]},
-    {"name": "RegExpIdentifierPart", "symbols": [/[\u200D]/]},
-    {"name": "RegExpIdentifierPart_U", "symbols": [/[a-zA-Z0-9]/]},
-    {"name": "RegExpIdentifierPart_U", "symbols": [{"literal":"$"}]},
-    {"name": "RegExpIdentifierPart_U", "symbols": [{"literal":"\\"}, "RegExpUnicodeEscapeSequence_U"]},
-    {"name": "RegExpIdentifierPart_U", "symbols": [/[\u200C]/]},
-    {"name": "RegExpIdentifierPart_U", "symbols": [/[\u200D]/]},
-    {"name": "RegExpUnicodeEscapeSequence", "symbols": [{"literal":"u"}, "Hex4Digits"]},
+    {"name": "ControlEscape", "symbols": [/[fnrtv]/], "postprocess": id},
+    {"name": "ControlLetter", "symbols": [/[abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ]/], "postprocess": id},
+    {"name": "GroupSpecifier", "symbols": [], "postprocess": c(null)},
+    {"name": "GroupSpecifier", "symbols": [{"literal":"?"}, "GroupName"], "postprocess": GroupSpecifier_Semantics},
+    {"name": "GroupSpecifier_U", "symbols": [], "postprocess": c(null)},
+    {"name": "GroupSpecifier_U", "symbols": [{"literal":"?"}, "GroupName_U"], "postprocess": GroupSpecifier_Semantics},
+    {"name": "GroupName", "symbols": [{"literal":"<"}, "RegExpIdentifierName", {"literal":">"}], "postprocess": GroupName_Semantics},
+    {"name": "GroupName_U", "symbols": [{"literal":"<"}, "RegExpIdentifierName_U", {"literal":">"}], "postprocess": GroupName_Semantics},
+    {"name": "RegExpIdentifierName", "symbols": ["RegExpIdentifierStart"], "postprocess": id},
+    {"name": "RegExpIdentifierName", "symbols": ["RegExpIdentifierName", "RegExpIdentifierPart"], "postprocess": (prods) => prods.join('')},
+    {"name": "RegExpIdentifierName_U", "symbols": ["RegExpIdentifierStart_U"], "postprocess": id},
+    {"name": "RegExpIdentifierName_U", "symbols": ["RegExpIdentifierName_U", "RegExpIdentifierPart_U"], "postprocess": (prods) => prods.join('')},
+    {"name": "RegExpIdentifierStart", "symbols": [/[a-zA-Z]/], "postprocess": id},
+    {"name": "RegExpIdentifierStart", "symbols": [{"literal":"$"}], "postprocess": id},
+    {"name": "RegExpIdentifierStart", "symbols": [{"literal":"_"}], "postprocess": id},
+    {"name": "RegExpIdentifierStart", "symbols": [{"literal":"\\"}, "RegExpUnicodeEscapeSequence"], "postprocess": RegExpIdentifier_Escape},
+    {"name": "RegExpIdentifierStart_U", "symbols": [/[a-zA-Z]/], "postprocess": id},
+    {"name": "RegExpIdentifierStart_U", "symbols": [{"literal":"$"}], "postprocess": id},
+    {"name": "RegExpIdentifierStart_U", "symbols": [{"literal":"_"}], "postprocess": id},
+    {"name": "RegExpIdentifierStart_U", "symbols": [{"literal":"\\"}, "RegExpUnicodeEscapeSequence_U"], "postprocess": RegExpIdentifier_Escape},
+    {"name": "RegExpIdentifierPart", "symbols": [/[a-zA-Z0-9]/], "postprocess": id},
+    {"name": "RegExpIdentifierPart", "symbols": [{"literal":"$"}], "postprocess": id},
+    {"name": "RegExpIdentifierPart", "symbols": [{"literal":"\\"}, "RegExpUnicodeEscapeSequence"], "postprocess": RegExpIdentifier_Escape},
+    {"name": "RegExpIdentifierPart", "symbols": [{"literal":"‌"}], "postprocess": id},
+    {"name": "RegExpIdentifierPart", "symbols": [{"literal":"‍"}], "postprocess": id},
+    {"name": "RegExpIdentifierPart_U", "symbols": [/[a-zA-Z0-9]/], "postprocess": id},
+    {"name": "RegExpIdentifierPart_U", "symbols": [{"literal":"$"}], "postprocess": id},
+    {"name": "RegExpIdentifierPart_U", "symbols": [{"literal":"\\"}, "RegExpUnicodeEscapeSequence_U"], "postprocess": RegExpIdentifier_Escape},
+    {"name": "RegExpIdentifierPart_U", "symbols": [{"literal":"‌"}], "postprocess": id},
+    {"name": "RegExpIdentifierPart_U", "symbols": [{"literal":"‍"}], "postprocess": id},
+    {"name": "RegExpUnicodeEscapeSequence", "symbols": [{"literal":"u"}, "Hex4Digits"], "postprocess": ([_, Hex4Digits]) => Hex4Digits},
     {"name": "RegExpUnicodeEscapeSequence_U$string$1", "symbols": [{"literal":"\\"}, {"literal":"u"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "RegExpUnicodeEscapeSequence_U", "symbols": [{"literal":"u"}, "LeadSurrogate", "RegExpUnicodeEscapeSequence_U$string$1", "TrailSurrogate"]},
-    {"name": "RegExpUnicodeEscapeSequence_U", "symbols": [{"literal":"u"}, "LeadSurrogate"]},
-    {"name": "RegExpUnicodeEscapeSequence_U", "symbols": [{"literal":"u"}, "TrailSurrogate"]},
-    {"name": "RegExpUnicodeEscapeSequence_U", "symbols": [{"literal":"u"}, "NonSurrogate"]},
+    {"name": "RegExpUnicodeEscapeSequence_U", "symbols": [{"literal":"u"}, "LeadSurrogate", "RegExpUnicodeEscapeSequence_U$string$1", "TrailSurrogate"], "postprocess": ([u, lead, _, trail]) => UTF16Decode(lead, trail)},
+    {"name": "RegExpUnicodeEscapeSequence_U", "symbols": [{"literal":"u"}, "LeadSurrogate"], "postprocess": ([_, LeadSurrogate], l, reject) => /^\\ud[c-f][0-9a-f][0-9a-f]$/i.test(lookahead(l + 5, 6)) ? reject : LeadSurrogate},
+    {"name": "RegExpUnicodeEscapeSequence_U", "symbols": [{"literal":"u"}, "TrailSurrogate"], "postprocess": ([_, TrailSurrogate]) => TrailSurrogate},
+    {"name": "RegExpUnicodeEscapeSequence_U", "symbols": [{"literal":"u"}, "NonSurrogate"], "postprocess": ([_, NonSurrogate]) => NonSurrogate},
     {"name": "RegExpUnicodeEscapeSequence_U$string$2", "symbols": [{"literal":"u"}, {"literal":"{"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "RegExpUnicodeEscapeSequence_U", "symbols": ["RegExpUnicodeEscapeSequence_U$string$2", "CodePoint", {"literal":"}"}]},
-    {"name": "LeadSurrogate", "symbols": ["Hex4Digits"]},
-    {"name": "TrailSurrogate", "symbols": ["Hex4Digits"]},
-    {"name": "NonSurrogate", "symbols": ["Hex4Digits"]},
+    {"name": "RegExpUnicodeEscapeSequence_U", "symbols": ["RegExpUnicodeEscapeSequence_U$string$2", "CodePoint", {"literal":"}"}], "postprocess": ([_, CodePoint]) => CodePoint},
+    {"name": "LeadSurrogate", "symbols": ["Hex4Digits"], "postprocess": ([Hex4Digits], l, reject) => Hex4Digits >= 0xD800 && Hex4Digits <= 0xDBFF ? Hex4Digits : reject},
+    {"name": "TrailSurrogate", "symbols": ["Hex4Digits"], "postprocess": ([Hex4Digits], l, reject) => Hex4Digits >= 0xDC00 && Hex4Digits <= 0xDFFF ? Hex4Digits : reject},
+    {"name": "NonSurrogate", "symbols": ["Hex4Digits"], "postprocess": ([Hex4Digits], l, reject) => Hex4Digits < 0xD800 || Hex4Digits > 0xDFFF ? Hex4Digits : reject},
     {"name": "IdentityEscape", "symbols": [IdentityEscape], "postprocess": id},
     {"name": "IdentityEscape_U", "symbols": ["SyntaxCharacter"], "postprocess": id},
     {"name": "IdentityEscape_U", "symbols": [{"literal":"/"}], "postprocess": id},
@@ -412,9 +454,9 @@ let ParserRules = [
     {"name": "ClassEscape_U", "symbols": [{"literal":"-"}]},
     {"name": "ClassEscape_U", "symbols": ["CharacterClassEscape_U"]},
     {"name": "ClassEscape_U", "symbols": ["CharacterEscape_U"]},
-    {"name": "HexEscapeSequence", "symbols": [{"literal":"x"}, "HexDigit", "HexDigit"]},
-    {"name": "Hex4Digits", "symbols": ["HexDigit", "HexDigit", "HexDigit", "HexDigit"]},
-    {"name": "CodePoint", "symbols": ["HexDigits"]}
+    {"name": "HexEscapeSequence", "symbols": [{"literal":"x"}, "HexDigit", "HexDigit"], "postprocess": ([_, h1, h2]) => Number(16n * h1 + h2)},
+    {"name": "Hex4Digits", "symbols": ["HexDigit", "HexDigit", "HexDigit", "HexDigit"], "postprocess": ([h1, h2, h3, h4]) => Number(0x1000n * h1 + 0x100n * h2 + 0x10n * h3 + h4)},
+    {"name": "CodePoint", "symbols": ["HexDigits"], "postprocess": ([HexDigits], l, reject) => HexDigits <= 0x10FFFFn ? Number(HexDigits) : reject}
 ];
 let ParserStart = "Pattern";
 export default { Lexer, ParserRules, ParserStart };

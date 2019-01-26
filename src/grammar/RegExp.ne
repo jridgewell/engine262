@@ -2,7 +2,9 @@
 
 @{%
 import { lookahead as rawLookahead } from './lookaheads.mjs';
-const lookahead = (start, length) => rawLookahead('RegExp', start, length).join();
+import { UTF16Decode } from '../static-semantics/UTF16Decode.mjs';
+import { UTF16Encoding } from '../static-semantics/UTF16Encoding.mjs';
+const lookahead = (start, length) => rawLookahead('RegExp', start, length).join('');
 %}
 
 @include "./BasicNumerals.ne"
@@ -166,9 +168,9 @@ QuantifierPrefix ->
     "*" {% QuantifierPrefix_nt %}
   | "+" {% QuantifierPrefix_nt %}
   | "?" {% QuantifierPrefix_nt %}
-  | "{" DecimalDigits "}"  {% ([_, DecimalDigits]) => ({ type: 'QuantifierPrefix', subtype: 'fixed', DecimalDigits }) %}
-  | "{" DecimalDigits ",}" {% ([_, DecimalDigits]) => ({ type: 'QuantifierPrefix', subtype: 'start', DecimalDigits }) %}
-  | "{" DecimalDigits "," DecimalDigits "}" {% ([_, DecimalDigits1, c, DecimalDigits2]) => ({ type: 'QuantifierPrefix', subtype: 'range', DecimalDigits1, DecimalDigits2 }) %}
+  | "{" DecimalDigits "}"  {% ([_, [DecimalDigits]]) => ({ type: 'QuantifierPrefix', subtype: 'fixed', DecimalDigits }) %}
+  | "{" DecimalDigits ",}" {% ([_, [DecimalDigits]]) => ({ type: 'QuantifierPrefix', subtype: 'start', DecimalDigits }) %}
+  | "{" DecimalDigits "," DecimalDigits "}" {% ([_, [DecimalDigits1], c, [DecimalDigits2]]) => ({ type: 'QuantifierPrefix', subtype: 'range', DecimalDigits1, DecimalDigits2 }) %}
 @{%
 const QuantifierPrefix_nt = ([ch]) => ({ type: 'QuantifierPrefix', subtype: ch });
 %}
@@ -182,45 +184,70 @@ const QuantifierPrefix_nt = ([ch]) => ({ type: 'QuantifierPrefix', subtype: ch }
 #     `(` GroupSpecifier[?U] Disjunction[?U, ?N] `)`
 #     `(` `?` `:` Disjunction[?U, ?N] `)`
 Atom ->
-    PatternCharacter {% id %}
-  | "."
-  | "\\" AtomEscape
-  | CharacterClass
-  | "(" GroupSpecifier Disjunction ")" {% ([l, GroupSpecifier, Disjunction]) => ({ type: 'Atom', subtype: '(', GroupSpecifier, Disjunction }) %}
-  | "(?:" Disjunction ")"
+    PatternCharacter                   {% Atom_PatternCharacter %}
+  | "."                                {% Atom_Dot %}
+  | "\\" AtomEscape                    {% Atom_Escape %}
+  | CharacterClass                     {% Atom_CharacterClass %}
+  | "(" GroupSpecifier Disjunction ")" {% Atom_Group %}
+  | "(?:" Disjunction ")"              {% Atom_Grouping %}
 Atom_U ->
-    PatternCharacter
-  | "."
-  | "\\" AtomEscape_U
-  | CharacterClass_U
-  | "(" GroupSpecifier_U Disjunction_U ")"
-  | "(?:" Disjunction_U ")"
+    PatternCharacter                       {% Atom_PatternCharacter %}
+  | "."                                    {% Atom_Dot %}
+  | "\\" AtomEscape_U                      {% Atom_Escape %}
+  | CharacterClass_U                       {% Atom_CharacterClass %}
+  | "(" GroupSpecifier_U Disjunction_U ")" {% Atom_Group %}
+  | "(?:" Disjunction_U ")"                {% Atom_Grouping %}
 Atom_N ->
-    PatternCharacter
-  | "."
-  | "\\" AtomEscape_N
-  | CharacterClass
-  | "(" GroupSpecifier Disjunction_N ")"
-  | "(?:" Disjunction_N ")"
+    PatternCharacter                     {% Atom_PatternCharacter %}
+  | "."                                  {% Atom_Dot %}
+  | "\\" AtomEscape_N                    {% Atom_Escape %}
+  | CharacterClass                       {% Atom_CharacterClass %}
+  | "(" GroupSpecifier Disjunction_N ")" {% Atom_Group %}
+  | "(?:" Disjunction_N ")"              {% Atom_Grouping %}
 Atom_U_N ->
-    PatternCharacter
-  | "."
-  | "\\" AtomEscape_U_N
-  | CharacterClass_U
-  | "(" GroupSpecifier_U Disjunction_U_N ")"
-  | "(?:" Disjunction_U_N ")"
+    PatternCharacter                         {% Atom_PatternCharacter %}
+  | "."                                      {% Atom_Dot %}
+  | "\\" AtomEscape_U_N                      {% Atom_Escape %}
+  | CharacterClass_U                         {% Atom_CharacterClass %}
+  | "(" GroupSpecifier_U Disjunction_U_N ")" {% Atom_Group %}
+  | "(?:" Disjunction_U_N ")"                {% Atom_Grouping %}
+@{%
+function Atom_PatternCharacter([PatternCharacter]) {
+  return { type: 'Atom', subtype: 'PatternCharacter', PatternCharacter };
+}
+
+function Atom_Dot([nt]) {
+  return { type: 'Atom', subtype: nt };
+}
+
+function Atom_Escape([nt, AtomEscape]) {
+  return { type: 'Atom', subtype: nt, AtomEscape };
+}
+
+function Atom_CharacterClass([CharacterClass]) {
+  return { type: 'Atom', subtype: 'CharacterClass', CharacterClass };
+}
+
+function Atom_Group([nt, GroupSpecifier, Disjunction]) {
+  return { type: 'Atom', subtype: nt, GroupSpecifier, Disjunction };
+}
+
+function Atom_Grouping([nt, Disjunction]) {
+  return { type: 'Atom', subtype: nt, Disjunction };
+}
+%}
 
 # #prod-SyntaxCharacter
 #   SyntaxCharacter :: one of
 #     `^` `$` `\` `.` `*` `+` `?` `(` `)` `[` `]` `{` `}` `|`
 SyntaxCharacter ->
-    [$^\\.*+?()[\]{}|]
+    [$^\\.*+?()[\]{}|] {% id %}
 
 # #prod-PatternCharacter
 #   PatternCharacter ::
 #     SourceCharacter but not SyntaxCharacter
 PatternCharacter ->
-    %PatternCharacter {% ([c]) => ({ PatternCharacter: c }) %}
+    %PatternCharacter {% id %}
 @{%
 const PatternCharacter = { test: /./.test.bind(/[^^$\\.*+?()[\]{}|]/u) };
 %}
@@ -322,7 +349,7 @@ function CharacterEscape_IdentityEscape([IdentityEscape]) {
 #   ControlEscape :: one of
 #     `f` `n` `r` `t` `v`
 ControlEscape ->
-    [fnrtv]
+    [fnrtv] {% id %}
 
 # #prod-ControlLetter
 #   ControlLetter :: one of
@@ -330,37 +357,50 @@ ControlEscape ->
 #     `t` `u` `v` `w` `x` `y` `z` `A` `B` `C` `D` `E` `F` `G` `H` `I` `J` `K` `L`
 #     `M` `N` `O` `P` `Q` `R` `S` `T` `U` `V` `W` `X` `Y` `Z` 
 ControlLetter ->
-    [abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ]
+    [abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ] {% id %}
 
 # #prod-GroupSpecifier
 #   GroupSpecifier[U] ::
 #     [empty]
 #     `?` GroupName[?U]
 GroupSpecifier ->
-    null
-  | "?" GroupName
+    null          {% c(null) %}
+  | "?" GroupName {% GroupSpecifier_Semantics %}
 GroupSpecifier_U ->
-    null
-  | "?" GroupName_U
+    null            {% c(null) %}
+  | "?" GroupName_U {% GroupSpecifier_Semantics %}
+@{%
+function GroupSpecifier_Semantics([_, GroupName]) {
+  return { type: 'GroupSpecifier', GroupName};
+}
+%}
 
 # #prod-GroupName
 #   GroupName[U] ::
 #     `<` RegExpIdentifierName[?U] `>`
 GroupName ->
-    "<" RegExpIdentifierName ">"
+    "<" RegExpIdentifierName ">" {% GroupName_Semantics %}
 GroupName_U ->
-    "<" RegExpIdentifierName_U ">"
+    "<" RegExpIdentifierName_U ">" {% GroupName_Semantics %}
+@{%
+function GroupName_Semantics([_, RegExpIdentifierName]) {
+  return RegExpIdentifierName;
+}
+%}
+
+# Implements StringValue
+# 21.2.1.6 #sec-regexp-identifier-names-static-semantics-stringvalue
 
 # #prod-RegExpIdentifierName
 #   RegExpIdentifierName[U] ::
 #     RegExpIdentifierStart[?U]
 #     RegExpIdentifierName[?U] RegExpIdentifierPart[?U]
 RegExpIdentifierName ->
-    RegExpIdentifierStart
-  | RegExpIdentifierName RegExpIdentifierPart
+    RegExpIdentifierStart {% id %}
+  | RegExpIdentifierName RegExpIdentifierPart {% (prods) => prods.join('') %}
 RegExpIdentifierName_U ->
-    RegExpIdentifierStart_U
-  | RegExpIdentifierName_U RegExpIdentifierPart_U
+    RegExpIdentifierStart_U {% id %}
+  | RegExpIdentifierName_U RegExpIdentifierPart_U {% (prods) => prods.join('') %}
 
 # #prod-RegExpIdentifierStart
 #   RegExpIdentifierStart[U] ::
@@ -369,15 +409,20 @@ RegExpIdentifierName_U ->
 #     `_`
 #     `\` RegExpUnicodeEscapeSequence[?U]
 RegExpIdentifierStart ->
-    [a-zA-Z]# TODO UnicodeIDStart
-  | "$"
-  | "_"
-  | "\\" RegExpUnicodeEscapeSequence
+    [a-zA-Z] {% id %} # TODO UnicodeIDStart
+  | "$" {% id %}
+  | "_" {% id %}
+  | "\\" RegExpUnicodeEscapeSequence {% RegExpIdentifier_Escape %}
 RegExpIdentifierStart_U ->
-    [a-zA-Z]# TODO UnicodeIDStart
-  | "$"
-  | "_"
-  | "\\" RegExpUnicodeEscapeSequence_U
+    [a-zA-Z] {% id %} # TODO UnicodeIDStart
+  | "$" {% id %}
+  | "_" {% id %}
+  | "\\" RegExpUnicodeEscapeSequence_U {% RegExpIdentifier_Escape %}
+@{%
+function RegExpIdentifier_Escape([_, RegExpUnicodeEscapeSequence]) {
+  return String.fromCharCode(...UTF16Encoding(RegExpUnicodeEscapeSequence));
+}
+%}
 
 # #prod-RegExpIdentifierPart
 #   RegExpIdentifierPart[U] ::
@@ -387,17 +432,17 @@ RegExpIdentifierStart_U ->
 #     <ZWNJ>
 #     <ZWJ>
 RegExpIdentifierPart ->
-    [a-zA-Z0-9] # TODO UnicodeIDContinue
-  | "$"
-  | "\\" RegExpUnicodeEscapeSequence
-  | [\u200C]
-  | [\u200D]
+    [a-zA-Z0-9] {% id %} # TODO UnicodeIDContinue
+  | "$" {% id %}
+  | "\\" RegExpUnicodeEscapeSequence {% RegExpIdentifier_Escape %}
+  | "\u200C" {% id %}
+  | "\u200D" {% id %}
 RegExpIdentifierPart_U ->
-    [a-zA-Z0-9] # TODO UnicodeIDContinue
-  | "$"
-  | "\\" RegExpUnicodeEscapeSequence_U
-  | [\u200C]
-  | [\u200D]
+    [a-zA-Z0-9] {% id %} # TODO UnicodeIDContinue
+  | "$" {% id %}
+  | "\\" RegExpUnicodeEscapeSequence_U {% RegExpIdentifier_Escape %}
+  | "\u200C" {% id %}
+  | "\u200D" {% id %}
 
 # #prod-RegExpUnicodeEscapeSequence
 #   RegExpUnicodeEscapeSequence[U] ::
@@ -408,33 +453,31 @@ RegExpIdentifierPart_U ->
 #     [~U] `u` Hex4Digits
 #     [+U] `u{` CodePoint `}`
 RegExpUnicodeEscapeSequence ->
-    "u" Hex4Digits
+    "u" Hex4Digits {% ([_, Hex4Digits]) => Hex4Digits %}
 RegExpUnicodeEscapeSequence_U ->
-    "u" LeadSurrogate "\\u" TrailSurrogate
-  | "u" LeadSurrogate
-  | "u" TrailSurrogate
-  | "u" NonSurrogate
-  | "u{" CodePoint "}"
-
-# TODO Each `\u` TrailSurrogate for which the choice of associated `u` LeadSurrogate is ambiguous shall be associated with the nearest possible `u` LeadSurrogate that would otherwise have no corresponding `\u` TrailSurrogate.
+    "u" LeadSurrogate "\\u" TrailSurrogate {% ([u, lead, _, trail]) => UTF16Decode(lead, trail) %}
+  | "u" LeadSurrogate {% ([_, LeadSurrogate], l, reject) => /^\\ud[c-f][0-9a-f][0-9a-f]$/i.test(lookahead(l + 5, 6)) ? reject : LeadSurrogate %}
+  | "u" TrailSurrogate {% ([_, TrailSurrogate]) => TrailSurrogate %}
+  | "u" NonSurrogate {% ([_, NonSurrogate]) => NonSurrogate %}
+  | "u{" CodePoint "}" {% ([_, CodePoint]) => CodePoint %}
 
 # #prod-LeadSurrogate
 #   LeadSurrogate ::
 #     Hex4Digits but only if the SV of Hex4Digits is in the inclusive range 0xD800 to 0xDBFF
 LeadSurrogate ->
-    Hex4Digits # TODO but only if the SV of Hex4Digits is in the inclusive range 0xD800 to 0xDBFF
+    Hex4Digits {% ([Hex4Digits], l, reject) => Hex4Digits >= 0xD800 && Hex4Digits <= 0xDBFF ? Hex4Digits : reject %}
 
 # #prod-TrailSurrogate
 #   TrailSurrogate ::
 #     Hex4Digits but only if the SV of Hex4Digits is in the inclusive range 0xDC00 to 0xDFFF
 TrailSurrogate ->
-    Hex4Digits # TODO but only if the SV of Hex4Digits is in the inclusive range 0xDC00 to 0xDFFF
+    Hex4Digits {% ([Hex4Digits], l, reject) => Hex4Digits >= 0xDC00 && Hex4Digits <= 0xDFFF ? Hex4Digits : reject %}
 
 # #prod-NonSurrogate
 #   NonSurrogate ::
 #     Hex4Digits but only if the SV of Hex4Digits is not in the inclusive range 0xD800 to 0xDFFF
 NonSurrogate ->
-    Hex4Digits # TODO but only if the SV of Hex4Digits is not in the inclusive range 0xD800 to 0xDFFF
+    Hex4Digits {% ([Hex4Digits], l, reject) => Hex4Digits < 0xD800 || Hex4Digits > 0xDFFF ? Hex4Digits : reject %}
 
 # #prod-IdentityEscape
 #   IdentityEscape[U] ::
@@ -658,17 +701,20 @@ ClassEscape_U ->
 # 11.8.4 #sec-literals-string-literals #
 ########################################
 
+# Implements SV
+# 11.8.4.2 #sec-static-semantics-sv
+
 # #prod-HexEscapeSequence
 #   HexEscapeSequence ::
 #     `x` HexDigit HexDigit
 HexEscapeSequence ->
-    "x" HexDigit HexDigit
+    "x" HexDigit HexDigit {% ([_, h1, h2]) => Number(16n * h1 + h2) %}
 
 # #prod-Hex4Digits
 #   Hex4Digits ::
 #     HexDigit HexDigit HexDigit HexDigit
 Hex4Digits ->
-    HexDigit HexDigit HexDigit HexDigit
+    HexDigit HexDigit HexDigit HexDigit {% ([h1, h2, h3, h4]) => Number(0x1000n * h1 + 0x100n * h2 + 0x10n * h3 + h4) %}
 
 ###################################################
 # 11.8.6 #sec-template-literal-lexical-components #
@@ -678,4 +724,4 @@ Hex4Digits ->
 #   CodePoint ::
 #     HexDigits but only if MV of HexDigits ≤ 0x10FFFF
 CodePoint ->
-    HexDigits # TODO HexDigits but only if MV of HexDigits ≤ 0x10FFFF
+    HexDigits {% ([HexDigits], l, reject) => HexDigits <= 0x10FFFFn ? Number(HexDigits) : reject %}
