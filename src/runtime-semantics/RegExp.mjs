@@ -17,44 +17,178 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
   const Unicode = flags.includes('u');
 
   function Evaluate_Pattern(Pattern) {
-    const m = Evaluate_Disjunction(Pattern.Disjunction, 1);
     return (str, index) => {
+      const mainM = Evaluate_Disjunction(Pattern.Disjunction, 1);
       Assert(index <= str.length);
       const Input = Unicode ? Array.from(str) : str.split('');
       const InputLength = Input.length;
       // TODO: Let listIndex be the index into Input of the character that was obtained from element index of str.
       const listIndex = index;
-      const c = (state) => state;
+      const mainC = (state) => state;
       const cap = new Array(NcapturingParens).fill(Value.undefined);
-      const x = new State(listIndex, cap);
-      return m(x, c);
+      const mainX = new State(listIndex, cap);
+      return mainM(mainX, mainC);
+
+      // 21.2.2.3 #sec-disjunction
+      function Evaluate_Disjunction(Disjunction, direction) {
+        if (Disjunction.subtype === 'Alternative') {
+          const m = Evaluate_Alternative(Disjunction.Alternative, direction);
+          return m;
+        } else {
+          const m1 = Evaluate_Alternative(Disjunction.Alternative, direction);
+          const m2 = Evaluate_Alternative(Disjunction.Disjunction, direction);
+          return (x, c) => {
+            const r = m1(x, c);
+            if (r !== MatchResultFailure) {
+              return r;
+            }
+            return m2(x, c);
+          };
+        }
+      }
+
+      // 21.2.2.4 #sec-alternative
+      function Evaluate_Alternative(Alternative, direction) {
+        if (Alternative.Term === null) {
+          return (x, c) => c(x);
+        } else {
+          const m1 = Evaluate_Alternative(Alternative.Alternative, direction);
+          const m2 = Evaluate_Term(Alternative.Term, direction);
+          if (direction === 1) {
+            return (x, c) => {
+              const d = (y) => m2(y, c);
+              return m1(x, d);
+            };
+          } else {
+            Assert(direction === -1);
+            return (x, c) => {
+              const d = (y) => m1(y, c);
+              return m2(x, d);
+            };
+          }
+        }
+      }
+
+      // 21.2.2.5 #sec-term
+      function Evaluate_Term(Term, direction) {
+        if (Term.subtype === 'Assertion') {
+          return (x, c) => {
+            const t = Evaluate_Assertion(Term.Assertion);
+            const r = t(x);
+            if (r === false) {
+              return MatchResultFailure;
+            }
+            return c(x);
+          };
+        } else if (Term.subtype === 'Atom') {
+          return Evaluate_Atom(Term.Atom, direction);
+        } else {
+          const m = Evaluate_Atom(Term.Atom, direction);
+          const { max, min, greedy } = Term.Quantifier;
+          Assert(!Number.isFinite(max) || max >= min);
+          // TODO: Let parenIndex be the number of left-capturing parentheses in the entire regular expression that occur to the left of this Term. This is the total number of Atom::(GroupSpecifierDisjunction) Parse Nodes prior to or enclosing this Term.
+          // TODO: Let parenCount be the number of left-capturing parentheses in Atom. This is the total number of Atom::(GroupSpecifierDisjunction) Parse Nodes enclosed by Atom.
+          return (x, c) => {
+            return RepeatMatcher(m, min, max, greedy, x, c, parenIndex, parenCount);
+          };
+        }
+      }
+
+      // 21.2.2.5.1 #sec-runtime-semantics-repeatmatcher-abstract-operation
+      function RepeatMatcher(m, min, max, greedy, x, c, parenIndex, parenCount) {
+        if (max === 0) {
+          return c(x);
+        }
+        const d = (y) => {
+          if (min === 0 && y.endIndex === x.endIndex) {
+            return MatchResultFailure;
+          }
+          const min2 = min === 0 ? 0 : min - 1;
+          const max2 = max === Infinity ? Infinity : max - 1;
+          return RepeatMatcher(m, min2, max2, greedy, y, c, parenIndex, parenCount);
+        };
+        const cap = [...x.captures];
+        // TODO: For each integer k that satisfies parenIndex < k and k ≤ parenIndex + parenCount, set cap[k] to undefined.
+        const e = x.endIndex;
+        const xr = new State(e, cap);
+        if (min !== 0) {
+          return m(xr, d);
+        }
+        if (greedy === false) {
+          const z = c(x);
+          if (z !== MatchResultFailure) {
+            return z;
+          }
+          return m(xr, d);
+        }
+        const z = m(xr, d);
+        if (z !== MatchResultFailure) {
+          return z;
+        }
+        return c(x);
+      }
+
+      // 21.2.2.8 #sec-atom
+      function Evaluate_Atom(Atom, direction) {
+        if (Atom.subtype === 'PatternCharacter') {
+          const ch = Atom.PatternCharacter;
+          const A = CharSet(ch);
+          return CharacterSetMatcher(A, false, direction);
+        }
+      }
+
+      function CharSet(char) {
+        return [char];
+      }
+
+      function charSetHas(charset, cc) {
+        return charset.some((char) => Canonicalize(char) === cc);
+      }
+
+      // 21.2.2.8.1 #sec-runtime-semantics-charactersetmatcher-abstract-operation
+      function CharacterSetMatcher(A, invert, direction) {
+        return (x, c) => {
+          const e = x.endIndex;
+          const f = e + direction;
+          if (f < 0 || f > InputLength) {
+            return MatchResultFailure;
+          }
+          const index = Math.min(e, f);
+          const ch = Input[index];
+          const cc = Canonicalize(ch);
+          if (invert === false) {
+            if (!charSetHas(A, cc)) {
+              return MatchResultFailure;
+            }
+          } else {
+            Assert(invert === true);
+            if (charSetHas(A, cc)) {
+              return MatchResultFailure;
+            }
+          }
+          const cap = x.captures;
+          const y = new State(f, cap);
+          return c(y);
+        };
+      }
+
+      // 21.2.2.8.2 #sec-runtime-semantics-canonicalize-ch
+      function Canonicalize(ch) {
+        if (IgnoreCase === false) {
+          return ch;
+        }
+
+        if (Unicode === true) {
+          // TODO: If the file CaseFolding.txt of the Unicode Character Database provides a simple or common case folding mapping for ch, return the result of applying that mapping to ch.
+          return ch;
+        } else {
+          // TODO
+        }
+      }
     };
   }
 
   return Evaluate_Pattern(pattern);
-
-  // 21.2.2.3 #sec-disjunction
-  function Evaluate_Disjunction(Disjunction, direction) {
-    if (Disjunction.subtype === 'Alternative') {
-      const m = Evaluate_Alternative(Disjunction.Alternative);
-      return m;
-    } else {
-      const m1 = Evaluate_Alternative(Disjunction.Alternative, direction);
-      const m2 = Evaluate_Alternative(Disjunction.Disjunction, direction);
-      return (x, c) => {
-        const r = m1(x, c);
-        if (r !== MatchResultFailure) {
-          return r;
-        }
-        return m2(x, c);
-      };
-    }
-  }
-
-  // 21.2.2.4 #sec-alternative
-  function Evaluate_Alternative(Alternative, direction) {
-    // TODO
-  }
 }
 
 class MatchResult {}

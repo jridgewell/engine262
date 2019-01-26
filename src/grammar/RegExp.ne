@@ -62,10 +62,9 @@ Alternative_U_N ->
     null                     {% Alternative_empty %}
   | Alternative_U_N Term_U_N {% Alternative_Alternative_Term %}
 @{%
-const Alternative_empty = () => ({ type: 'Alternative', Terms: [] });
+const Alternative_empty = () => ({ type: 'Alternative', Alternative: null, Term: null });
 const Alternative_Alternative_Term = ([Alternative, Term]) => {
-  Alternative.Terms.push(Term);
-  return Alternative;
+  return { type: 'Alternative', Alternative, Term };
 };
 %}
 

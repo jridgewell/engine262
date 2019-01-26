@@ -89,7 +89,7 @@ function RegExpBuiltinExec(R, S) {
       }
       return Value.null;
     }
-    r = matcher(S, lastIndex);
+    r = matcher(S.stringValue(), lastIndex.numberValue());
     if (r === MatchResultFailure) {
       if (sticky) {
         Q(Set(R, lastIndexStr, new Value(0), Value.true));
@@ -109,7 +109,7 @@ function RegExpBuiltinExec(R, S) {
   }
 
   if (global || sticky) {
-    Q(Set(R, lastIndexStr, e, Value.true));
+    Q(Set(R, lastIndexStr, new Value(e), Value.true));
   }
 
   const n = r.captures.length;
@@ -118,7 +118,7 @@ function RegExpBuiltinExec(R, S) {
   // Assert: The value of A's "length" property is n + 1.
   X(CreateDataProperty(A, new Value('index'), lastIndex));
   X(CreateDataProperty(A, new Value('input'), S));
-  const matchedSubstr = S.stringValue().substring(lastIndex.numberValue(), e.numberValue());
+  const matchedSubstr = S.stringValue().substring(lastIndex.numberValue(), e);
   X(CreateDataProperty(A, new Value('0'), new Value(matchedSubstr)));
 
   let groups;

@@ -109,8 +109,9 @@ visitor.Disjunction = (node, c) => {
 };
 
 visitor.Alternative = (node, c) => {
-  for (const term of node.Terms) {
-    c(term);
+  if (node.Alternative) {
+    c(node.Alternative);
+    c(node.Term);
   }
 };
 
