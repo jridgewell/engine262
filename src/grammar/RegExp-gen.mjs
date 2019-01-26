@@ -16,18 +16,14 @@ function c(val) {
 const Pattern_Disjunction = ([Disjunction]) => ({ type: 'Pattern', Disjunction });
 
 
-function Disjunction_Alternative([Alternative]) {
-  return { type: 'Disjunction', subtype: 'Alternative', Alternative };
-}
-
-function Disjunction_Alternative_Disjunction ([Alternative, _, Disjunction]) {
-  return { type: 'Disjunction', subtype: 'AlternativeDisjunction', Alternative, Disjunction };
-}
+const Disjunction_Alternative = ([Alternative]) => ({ type: 'Disjunction', Alternatives: [Alternative] });
+const Disjunction_Alternative_Disjunction = ([Alternative, _, Disjunction]) => ({ type: 'Disjunction', Alternatives: [Alternative, ...Disjunction.Alternatives] });
 
 
-const Alternative_empty = () => ({ type: 'Alternative', Alternative: null, Term: null });
+const Alternative_empty = () => ({ type: 'Alternative', Terms: [] });
 const Alternative_Alternative_Term = ([Alternative, Term]) => {
-  return { type: 'Alternative', Alternative, Term };
+  Alternative.Terms.push(Term);
+  return Alternative;
 };
 
 
@@ -60,11 +56,11 @@ function Atom_CharacterClass([CharacterClass]) {
 }
 
 function Atom_Group([nt, GroupSpecifier, Disjunction]) {
-  return { type: 'Atom', subtype: nt, GroupSpecifier, Disjunction };
+  return { type: 'Atom', subtype: nt, capturing: true, GroupSpecifier, Disjunction };
 }
 
 function Atom_NonCapturingGroup([nt, Disjunction]) {
-  return { type: 'Atom', subtype: nt, Disjunction };
+  return { type: 'Atom', subtype: nt, capturing: false, Disjunction };
 }
 
 
@@ -117,7 +113,7 @@ function CharacterEscape_IdentityEscape([IdentityEscape]) {
 
 
 function GroupSpecifier_GroupName([_, GroupName]) {
-  return { type: 'GroupSpecifier', GroupName};
+  return { type: 'GroupSpecifier', GroupName };
 }
 
 
@@ -191,9 +187,6 @@ function CharacterClass_Evaluate(inverted, [_, ClassRanges], l, reject) {
 }
 
 
-function ClassRanges_Empty() {
-  return null;
-}
 function ClassRanges_NonemptyClassRanges([NonemptyClassRanges]) {
   return { type: 'ClassRanges', NonemptyClassRanges };
 }
@@ -483,9 +476,9 @@ let ParserRules = [
     {"name": "CharacterClass_U", "symbols": [{"literal":"["}, "ClassRanges_U", {"literal":"]"}], "postprocess": CharacterClass_Evaluate.bind(undefined, false)},
     {"name": "CharacterClass_U$string$1", "symbols": [{"literal":"["}, {"literal":"^"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "CharacterClass_U", "symbols": ["CharacterClass_U$string$1", "ClassRanges_U", {"literal":"]"}], "postprocess": CharacterClass_Evaluate.bind(undefined, true)},
-    {"name": "ClassRanges", "symbols": [], "postprocess": ClassRanges_Empty},
+    {"name": "ClassRanges", "symbols": [], "postprocess": c(null)},
     {"name": "ClassRanges", "symbols": ["NonemptyClassRanges"], "postprocess": ClassRanges_NonemptyClassRanges},
-    {"name": "ClassRanges_U", "symbols": [], "postprocess": ClassRanges_Empty},
+    {"name": "ClassRanges_U", "symbols": [], "postprocess": c(null)},
     {"name": "ClassRanges_U", "symbols": ["NonemptyClassRanges_U"], "postprocess": ClassRanges_NonemptyClassRanges},
     {"name": "NonemptyClassRanges", "symbols": ["ClassAtom"]},
     {"name": "NonemptyClassRanges", "symbols": ["ClassAtom", "NonemptyClassRangesNoDash"]},

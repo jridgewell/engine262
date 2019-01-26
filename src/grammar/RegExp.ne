@@ -41,13 +41,8 @@ Disjunction_U_N ->
     Alternative_U_N                      {% Disjunction_Alternative %}
   | Alternative_U_N  "|" Disjunction_U_N {% Disjunction_Alternative_Disjunction %}
 @{%
-function Disjunction_Alternative([Alternative]) {
-  return { type: 'Disjunction', subtype: 'Alternative', Alternative };
-}
-
-function Disjunction_Alternative_Disjunction ([Alternative, _, Disjunction]) {
-  return { type: 'Disjunction', subtype: 'AlternativeDisjunction', Alternative, Disjunction };
-}
+const Disjunction_Alternative = ([Alternative]) => ({ type: 'Disjunction', Alternatives: [Alternative] });
+const Disjunction_Alternative_Disjunction = ([Alternative, _, Disjunction]) => ({ type: 'Disjunction', Alternatives: [Alternative, ...Disjunction.Alternatives] });
 %}
 
 # #prod-Alternative
@@ -67,9 +62,10 @@ Alternative_U_N ->
     null                     {% Alternative_empty %}
   | Alternative_U_N Term_U_N {% Alternative_Alternative_Term %}
 @{%
-const Alternative_empty = () => ({ type: 'Alternative', Alternative: null, Term: null });
+const Alternative_empty = () => ({ type: 'Alternative', Terms: [] });
 const Alternative_Alternative_Term = ([Alternative, Term]) => {
-  return { type: 'Alternative', Alternative, Term };
+  Alternative.Terms.push(Term);
+  return Alternative;
 };
 %}
 
@@ -156,8 +152,8 @@ const Assertion_Disjunction = ([ch, Disjunction]) => ({ type: 'Assertion', subty
 #     QuantifierPrefix
 #     QuantifierPrefix `?`
 Quantifier ->
-    QuantifierPrefix     {% ([QuantifierPrefix]) => ({ type: 'Quantifier', QuantifierPrefix, lazy: false }) %}
-  | QuantifierPrefix "?" {% ([QuantifierPrefix]) => ({ type: 'Quantifier', QuantifierPrefix, lazy: true }) %}
+    QuantifierPrefix     {% ([QuantifierPrefix]) => ({ type: 'Quantifier', QuantifierPrefix, greedy: true }) %}
+  | QuantifierPrefix "?" {% ([QuantifierPrefix]) => ({ type: 'Quantifier', QuantifierPrefix, greedy: false }) %}
 
 
 # #prod-QuantifierPrefix
@@ -375,7 +371,7 @@ GroupSpecifier_U ->
   | "?" GroupName_U {% GroupSpecifier_GroupName %}
 @{%
 function GroupSpecifier_GroupName([_, GroupName]) {
-  return { type: 'GroupSpecifier', GroupName};
+  return { type: 'GroupSpecifier', GroupName };
 }
 %}
 

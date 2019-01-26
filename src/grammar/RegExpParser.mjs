@@ -105,18 +105,14 @@ visitor.Pattern = (node, c) => {
 };
 
 visitor.Disjunction = (node, c) => {
-  if (node.subtype === 'Alternative') {
-    c(node.Alternative);
-  } else {
-    c(node.Alternative);
-    c(node.Disjunction);
+  for (const Alternative of node.Alternatives) {
+    c(Alternative);
   }
 };
 
 visitor.Alternative = (node, c) => {
-  if (node.Alternative) {
-    c(node.Alternative);
-    c(node.Term);
+  for (const Term of node.Terms) {
+    c(Term);
   }
 };
 
@@ -169,7 +165,35 @@ visitor.Atom = (node, c) => {
   }
 };
 
+visitor.AtomEscape = (node, c) => {
+  switch (node.subtype) {
+    case 'DecimalEscape':
+      c(node.DecimalEscape);
+      break;
+    case 'CharacterClassEscape':
+      c(node.CharacterClassEscape);
+      break;
+    case 'CharacterEscape':
+      c(node.CharacterEscape);
+      break;
+    case 'k':
+      break;
+    default:
+      throw new Error(`unhandled subtype AtomEscape:${node.subtype}`);
+  }
+};
+
+visitor.CharacterEscape = ignore;
+
 visitor.GroupSpecifier = ignore;
+
+visitor.DecimalEscape = ignore;
+
+visitor.CharacterClassEscape = (node, c) => {
+  if (node.subtype === 'UnicodePropertyValueExpression') {
+    c(node.UnicodePropertyValueExpression);
+  }
+};
 
 visitor.CharacterClass = (node, c) => {
   if (node.ClassRanges) {

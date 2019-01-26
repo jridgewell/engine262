@@ -31,39 +31,41 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
 
       // 21.2.2.3 #sec-disjunction
       function Evaluate_Disjunction(Disjunction, direction) {
-        if (Disjunction.subtype === 'Alternative') {
-          const m = Evaluate_Alternative(Disjunction.Alternative, direction);
+        if (Disjunction.Alternatives.length === 1) {
+          const m = Evaluate_Alternative(Disjunction.Alternatives[0], direction);
           return m;
         } else {
-          const m1 = Evaluate_Alternative(Disjunction.Alternative, direction);
-          const m2 = Evaluate_Disjunction(Disjunction.Disjunction, direction);
+          const M = Disjunction.Alternatives.map((Alternative) => Evaluate_Alternative(Alternative, direction));
           return (x, c) => {
-            const r = m1(x, c);
-            if (r !== MatchResultFailure) {
-              return r;
+            for (const m of M) {
+              const r = m(x, c);
+              if (r !== MatchResultFailure) {
+                return r;
+              }
             }
-            return m2(x, c);
+            return MatchResultFailure;
           };
         }
       }
 
       // 21.2.2.4 #sec-alternative
       function Evaluate_Alternative(Alternative, direction) {
-        if (Alternative.Term === null) {
+        if (Alternative.Terms.length === 0) {
           return (x, c) => c(x);
+        } else if (Alternative.Terms.length === 1) {
+          return Evaluate_Term(Alternative.Terms[0], direction);
         } else {
-          const m1 = Evaluate_Alternative(Alternative.Alternative, direction);
-          const m2 = Evaluate_Term(Alternative.Term, direction);
+          const M = Alternative.Terms.map((Term) => Evaluate_Term(Term, direction));
           if (direction === 1) {
             return (x, c) => {
-              const d = (y) => m2(y, c);
-              return m1(x, d);
+              const d = M.slice(1).reduceRight((prev, cur) => (y) => cur(y, prev), c);
+              return M[0](x, d);
             };
           } else {
             Assert(direction === -1);
             return (x, c) => {
-              const d = (y) => m1(y, c);
-              return m2(x, d);
+              const d = M.slice(0, -1).reduce((prev, cur) => (y) => cur(y, prev), c);
+              return M[M.length - 1](x, d);
             };
           }
         }
@@ -86,11 +88,9 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
           const m = Evaluate_Atom(Term.Atom, direction);
           const { max, min, greedy } = Term.Quantifier;
           Assert(!Number.isFinite(max) || max >= min);
-          // TODO: Let parenIndex be the number of left-capturing parentheses in the entire regular expression that occur to the left of this Term. This is the total number of Atom::(GroupSpecifierDisjunction) Parse Nodes prior to or enclosing this Term.
-          // TODO: Let parenCount be the number of left-capturing parentheses in Atom. This is the total number of Atom::(GroupSpecifierDisjunction) Parse Nodes enclosed by Atom.
-          return (x, c) => {
-            return RepeatMatcher(m, min, max, greedy, x, c, parenIndex, parenCount);
-          };
+          // TODO: Let parenIndex be the number of left-capturing parentheses in the entire regular expression that occur to the left of this Term. This is the total number of Atom :: `(` GroupSpecifierDisjunction `)` Parse Nodes prior to or enclosing this Term.
+          // TODO: Let parenCount be the number of left-capturing parentheses in Atom. This is the total number of Atom :: `(` GroupSpecifierDisjunction `)` Parse Nodes enclosed by Atom.
+          return (x, c) => RepeatMatcher(m, min, max, greedy, x, c, parenIndex, parenCount);
         }
       }
 
