@@ -100,8 +100,11 @@ visitor.Pattern = (node, c) => {
 };
 
 visitor.Disjunction = (node, c) => {
-  for (const alt of node.Alternatives) {
-    c(alt);
+  if (node.subtype === 'Alternative') {
+    c(node.Alternative);
+  } else {
+    c(node.Alternative);
+    c(node.Disjunction);
   }
 };
 

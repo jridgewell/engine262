@@ -35,7 +35,25 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
 
   // 21.2.2.3 #sec-disjunction
   function Evaluate_Disjunction(Disjunction, direction) {
+    if (Disjunction.subtype === 'Alternative') {
+      const m = Evaluate_Alternative(Disjunction.Alternative);
+      return m;
+    } else {
+      const m1 = Evaluate_Alternative(Disjunction.Alternative, direction);
+      const m2 = Evaluate_Alternative(Disjunction.Disjunction, direction);
+      return (x, c) => {
+        const r = m1(x, c);
+        if (r !== MatchResultFailure) {
+          return r;
+        }
+        return m2(x, c);
+      };
+    }
+  }
 
+  // 21.2.2.4 #sec-alternative
+  function Evaluate_Alternative(Alternative, direction) {
+    // TODO
   }
 }
 

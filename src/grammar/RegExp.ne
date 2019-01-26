@@ -37,8 +37,13 @@ Disjunction_U_N ->
     Alternative_U_N                      {% Disjunction_Alternative %}
   | Alternative_U_N  "|" Disjunction_U_N {% Disjunction_Alternative_Disjunction %}
 @{%
-const Disjunction_Alternative = ([Alternative]) => ({ type: 'Disjunction', Alternatives: [Alternative] });
-const Disjunction_Alternative_Disjunction = ([Alternative, _, Disjunction]) => ({ type: 'Disjunction', Alternatives: [Alternative, ...Disjunction.Alternatives] });
+function Disjunction_Alternative([Alternative]) {
+  return { type: 'Disjunction', subtype: 'Alternative', Alternative };
+}
+
+function Disjunction_Alternative_Disjunction ([Alternative, _, Disjunction]) {
+  return { type: 'Disjunction', subtype: 'AlternativeDisjunction', Alternative, Disjunction };
+}
 %}
 
 # Alternative[U, N] ::

@@ -14,8 +14,13 @@ function c(val) {
 const Pattern_Disjunction = ([Disjunction]) => ({ type: 'Pattern', Disjunction });
 
 
-const Disjunction_Alternative = ([Alternative]) => ({ type: 'Disjunction', Alternatives: [Alternative] });
-const Disjunction_Alternative_Disjunction = ([Alternative, _, Disjunction]) => ({ type: 'Disjunction', Alternatives: [Alternative, ...Disjunction.Alternatives] });
+function Disjunction_Alternative([Alternative]) {
+  return { type: 'Disjunction', subtype: 'Alternative', Alternative };
+}
+
+function Disjunction_Alternative_Disjunction ([Alternative, _, Disjunction]) {
+  return { type: 'Disjunction', subtype: 'AlternativeDisjunction', Alternative, Disjunction };
+}
 
 
 const Alternative_empty = () => ({ type: 'Alternative', Terms: [] });
