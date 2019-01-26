@@ -24,7 +24,7 @@ const Pattern_U_N_Grammar = nearley.Grammar.fromCompiled({
   ParserStart: 'Pattern_U_N',
 });
 
-export function parseRegExp(tokens, options) {
+export function parse(tokens, options) {
   const { U, N } = options;
   let grammar;
   if (U && N) {

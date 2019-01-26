@@ -16,7 +16,7 @@ import {
 } from '../runtime-semantics/all.mjs';
 import { Q, X } from '../completion.mjs';
 import { msg } from '../helpers.mjs';
-import { parseRegExp } from '../grammar/RegExpParser.mjs';
+import { parse } from '../grammar/RegExpParser.mjs';
 
 // 21.2.3.2.1 #sec-regexpalloc
 export function RegExpAlloc(newTarget) {
@@ -57,13 +57,13 @@ export function RegExpInitialize(obj, pattern, flags) {
   try {
     if (BMP) {
       patternCharacters = P.stringValue().split('');
-      parsed = parseRegExp(patternCharacters, { U: false, N: false });
+      parsed = parse(patternCharacters, { U: false, N: false });
       if (parsed.groupSpecifierNames.size > 0) {
-        parsed = parseRegExp(patternCharacters, { U: false, N: true });
+        parsed = parse(patternCharacters, { U: false, N: true });
       }
     } else {
       patternCharacters = Array.from(P.stringValue());
-      parsed = parseRegExp(patternCharacters, { U: true, N: true });
+      parsed = parse(patternCharacters, { U: true, N: true });
     }
   } catch (e) {
     if (e instanceof SyntaxError) {

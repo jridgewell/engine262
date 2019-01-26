@@ -1,14 +1,14 @@
 import util from 'util';
-import { parseRegExp, walk } from './src/grammar/RegExpParser';
+import { parse, walk } from './src/grammar/RegExpParser';
 
 util.inspect.defaultOptions.depth = Infinity;
 
 {
-  const result = parseRegExp([...process.argv[2]], { U: true, N: true });
+  const result = parse([...process.argv[2]], { U: true, N: true });
   console.log(result);
 
   const capturingGroups = [];
-  walk(result, {
+  walk(result.pattern, {
     Atom: (node) => {
       if (node.subtype === 'AtomGroup' && node.capturing) {
         capturingGroups.push(node.name);
