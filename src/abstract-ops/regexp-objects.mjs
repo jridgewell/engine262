@@ -13,6 +13,7 @@ import {
 } from './all.mjs';
 import { Q, X } from '../completion.mjs';
 import { msg } from '../helpers.mjs';
+import { parseRegExp } from '../grammar/RegExpParser.mjs';
 
 // 21.2.3.2.1 #sec-regexpalloc
 export function RegExpAlloc(newTarget) {
@@ -47,10 +48,20 @@ export function RegExpInitialize(obj, pattern, flags) {
   }
 
   const BMP = !f.includes('u');
+
+  let parsed;
+  let patternCharacters;
   if (BMP) {
-    // TODO: parse P
+    patternCharacters = P.stringValue().split('');
+    parsed = parseRegExp(patternCharacters, { U: false, N: false });
+    if (parsed.groupNames.length > 0) {
+      parsed = parseRegExp(patternCharacters, { U: false, N: true });
+    }
+    // TODO: check for errors
   } else {
-    // TODO: parse P
+    patternCharacters = Array.from(P.stringValue());
+    parsed = parseRegExp(patternCharacters, { U: true, N: true });
+    // TODO: check for errors
   }
 
   // TODO: remove this once internal parsing is implemented
@@ -65,7 +76,7 @@ export function RegExpInitialize(obj, pattern, flags) {
 
   obj.OriginalSource = P;
   obj.OriginalFlags = F;
-  obj.RegExpMatcher = getMatcher(P, F);
+  obj.RegExpMatcher = getMatcher(P, F, patternCharacters);
 
   Q(Set(obj, new Value('lastIndex'), new Value(0), Value.true));
   return obj;

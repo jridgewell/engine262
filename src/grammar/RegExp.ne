@@ -174,38 +174,55 @@ const QuantifierPrefix_nt = ([ch]) => ({ type: 'QuantifierPrefix', subtype: ch }
 #     ( GroupSpecifier[?U] Disjunction[?U, ?N] )
 #     ( ? : Disjunction[?U, ?N] )
 Atom ->
-    PatternCharacter {% id %}
-  | "."
-  | "\\" AtomEscape
-  | CharacterClass
-  | "(" GroupSpecifier Disjunction ")" {% ([l, GroupSpecifier, Disjunction]) => ({ type: 'Atom', subtype: '(', GroupSpecifier, Disjunction }) %}
-  | "(?:" Disjunction ")"
+    PatternCharacter                   {% id %}
+  | "."                                {% Atom_dot %}
+  | "\\" AtomEscape                    {% Atom_escape %}
+  | CharacterClass                     {% id %}
+  | "(" GroupSpecifier Disjunction ")" {% Atom_group %}
+  | "(?:" Disjunction ")"              {% Atom_nonCapturingGroup %}
 Atom_U ->
-    PatternCharacter
-  | "."
-  | "\\" AtomEscape_U
-  | CharacterClass_U
-  | "(" GroupSpecifier_U Disjunction_U ")"
-  | "(?:" Disjunction_U ")"
+    PatternCharacter                       {% id %}
+  | "."                                    {% Atom_dot %}
+  | "\\" AtomEscape_U                      {% Atom_escape %}
+  | CharacterClass_U                       {% id %}
+  | "(" GroupSpecifier_U Disjunction_U ")" {% Atom_group %}
+  | "(?:" Disjunction_U ")"                {% Atom_nonCapturingGroup %}
 Atom_N ->
-    PatternCharacter
-  | "."
-  | "\\" AtomEscape_N
-  | CharacterClass
-  | "(" GroupSpecifier Disjunction_N ")"
-  | "(?:" Disjunction_N ")"
+    PatternCharacter                     {% id %}
+  | "."                                  {% Atom_dot %}
+  | "\\" AtomEscape_N                    {% Atom_escape %}
+  | CharacterClass                       {% id %}
+  | "(" GroupSpecifier Disjunction_N ")" {% Atom_group %}
+  | "(?:" Disjunction_N ")"              {% Atom_nonCapturingGroup %}
 Atom_U_N ->
-    PatternCharacter
-  | "."
-  | "\\" AtomEscape_U_N
-  | CharacterClass_U
-  | "(" GroupSpecifier_U Disjunction_U_N ")"
-  | "(?:" Disjunction_U_N ")"
+    PatternCharacter                         {% id %}
+  | "."                                      {% Atom_dot %}
+  | "\\" AtomEscape_U_N                      {% Atom_escape %}
+  | CharacterClass_U                         {% id %}
+  | "(" GroupSpecifier_U Disjunction_U_N ")" {% Atom_group %}
+  | "(?:" Disjunction_U_N ")"                {% Atom_nonCapturingGroup %}
+@{%
+function Atom_dot() {
+  return { type: 'Atom', subtype: 'AtomDot' };
+}
+
+function Atom_escape([l, AtomEscape]) {
+  return { type: 'Atom', subtype: 'AtomEscape', AtomEscape };
+}
+
+function Atom_group([l, GroupSpecifier, Disjunction]) {
+  return { type: 'Atom', subtype: 'AtomGroup', capturing: true, GroupSpecifier, Disjunction };
+}
+
+function Atom_nonCapturingGroup([l, Disjunction]) {
+  return { type: 'Atom', subtype: 'AtomGroup', capturing: false, Disjunction };
+}
+%}
 
 # SyntaxCharacter :: one of
 #     ^$\.*+?()[]{}|
 SyntaxCharacter ->
-    [$^\\.*+?()[\]{}|]
+    [$^\\.*+?()[\]{}|] {% ([c]) => ({ SyntaxCharacter: c }) %}
 
 # PatternCharacter ::
 #     SourceCharacter but not SyntaxCharacter
@@ -309,39 +326,58 @@ function CharacterEscape_IdentityEscape([IdentityEscape]) {
 # ControlEscape :: one of
 #     fnrtv
 ControlEscape ->
-    [fnrtv]
+    [fnrtv] {% ([c]) => ({ ControlEscape: c }) %}
 
 # ControlLetter :: one of
 #     abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
 ControlLetter ->
-    [abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ]
+    [a-zA-Z] {% ([c]) => ({ ControlLetter: c }) %}
 
 # GroupSpecifier[U] ::
 #     [empty]
 #     ? GroupName[?U]
 GroupSpecifier ->
-    null
-  | "?" GroupName
+    null          {% GroupSpecifier_empty %}
+  | "?" GroupName {% GroupSpecifier_GroupName %}
 GroupSpecifier_U ->
-    null
-  | "?" GroupName_U
+    null            {% GroupSpecifier_empty %}
+  | "?" GroupName_U {% GroupSpecifier_GroupName %}
+
+@{%
+function GroupSpecifier_empty() {
+  return null;
+}
+function GroupSpecifier_GroupName([l, GroupName]) {
+  return { type: 'GroupSpecifier', GroupName };
+}
+%}
 
 # GroupName[U] ::
 #     < RegExpIdentifierName[?U] >
 GroupName ->
-    "<" RegExpIdentifierName ">"
+    "<" RegExpIdentifierName ">"   {% GroupName %}
 GroupName_U ->
-    "<" RegExpIdentifierName_U ">"
+    "<" RegExpIdentifierName_U ">" {% GroupName %}
+@{%
+function GroupName([c, RegExpIdentifierName]) {
+  return RegExpIdentifierName;
+}
+%}
 
 # RegExpIdentifierName[U] ::
 #     RegExpIdentifierStart[?U]
 #     RegExpIdentifierName[?U] RegExpIdentifierPart[?U]
 RegExpIdentifierName ->
-    RegExpIdentifierStart
-  | RegExpIdentifierName RegExpIdentifierPart
+    RegExpIdentifierStart                     {% id %}
+  | RegExpIdentifierName RegExpIdentifierPart {% RegExpIdentifierName_RegExpIdentifierName_RegExpIdentifierPart %}
 RegExpIdentifierName_U ->
-    RegExpIdentifierStart_U
-  | RegExpIdentifierName_U RegExpIdentifierPart_U
+    RegExpIdentifierStart_U                       {% id %}
+  | RegExpIdentifierName_U RegExpIdentifierPart_U {% RegExpIdentifierName_RegExpIdentifierName_RegExpIdentifierPart %}
+@{%
+function RegExpIdentifierName_RegExpIdentifierName_RegExpIdentifierPart([RegExpIdentifierName, RegExpIdentifierPart]) {
+  return RegExpIdentifierName + RegExpIdentifierPart;
+}
+%}
 
 # RegExpIdentifierStart[U] ::
 #     UnicodeIDStart
@@ -349,15 +385,15 @@ RegExpIdentifierName_U ->
 #     _
 #     \ RegExpUnicodeEscapeSequence[?U]
 RegExpIdentifierStart ->
-    [a-zA-Z]# TODO UnicodeIDStart
-  | "$"
-  | "_"
-  | "\\" RegExpUnicodeEscapeSequence
+    [a-zA-Z]                         {% id %} # TODO UnicodeIDStart
+  | "$"                              {% id %}
+  | "_"                              {% id %}
+  | "\\" RegExpUnicodeEscapeSequence {% id %}
 RegExpIdentifierStart_U ->
-    [a-zA-Z]# TODO UnicodeIDStart
-  | "$"
-  | "_"
-  | "\\" RegExpUnicodeEscapeSequence_U
+    [a-zA-Z]                           {% id %} # TODO UnicodeIDStart
+  | "$"                                {% id %}
+  | "_"                                {% id %}
+  | "\\" RegExpUnicodeEscapeSequence_U {% id %}
 
 # RegExpIdentifierPart[U] ::
 #     UnicodeIDContinue
@@ -366,17 +402,22 @@ RegExpIdentifierStart_U ->
 #     <ZWNJ>
 #     <ZWJ>
 RegExpIdentifierPart ->
-    [a-zA-Z0-9] # TODO UnicodeIDContinue
-  | "$"
-  | "\\" RegExpUnicodeEscapeSequence
-  | [\u200C]
-  | [\u200D]
+    [a-zA-Z0-9]                      {% id %} # TODO UnicodeIDContinue
+  | "$"                              {% id %}
+  | "\\" RegExpUnicodeEscapeSequence {% RegExpIdentifierPart_RegExpUnicodeEscapeSequence %}
+  | [\u200C]                         {% id %}
+  | [\u200D]                         {% id %}
 RegExpIdentifierPart_U ->
-    [a-zA-Z0-9] # TODO UnicodeIDContinue
-  | "$"
-  | "\\" RegExpUnicodeEscapeSequence_U
-  | [\u200C]
-  | [\u200D]
+    [a-zA-Z0-9]                        {% id %} # TODO UnicodeIDContinue
+  | "$"                                {% id %}
+  | "\\" RegExpUnicodeEscapeSequence_U {% RegExpIdentifierPart_RegExpUnicodeEscapeSequence %}
+  | [\u200C]                           {% id %}
+  | [\u200D]                           {% id %}
+@{%
+function RegExpIdentifierPart_RegExpUnicodeEscapeSequence([s, RegExpUnicodeEscapeSequence]) {
+  return String.fromCodePoint(Number(RegExpUnicodeEscapeSequence));
+}
+%}
 
 # RegExpUnicodeEscapeSequence[U] ::
 # [+U] u LeadSurrogate \u TrailSurrogate
@@ -386,30 +427,46 @@ RegExpIdentifierPart_U ->
 # [~U] u Hex4Digits
 # [+U] u{ CodePoint }
 RegExpUnicodeEscapeSequence ->
-    "u" Hex4Digits
+    "u" Hex4Digits {% id %}
+# TODO: decode UTF-16 correctly
 RegExpUnicodeEscapeSequence_U ->
-    "u" LeadSurrogate "\\u" TrailSurrogate
-  | "u" LeadSurrogate
-  | "u" TrailSurrogate
-  | "u" NonSurrogate
-  | "u{" CodePoint "}"
+    "u" LeadSurrogate "\\u" TrailSurrogate {% id %}
+  | "u" LeadSurrogate {% id %}
+  | "u" TrailSurrogate {% id %}
+  | "u" NonSurrogate {% id %}
+  | "u{" CodePoint "}" {% id %}
 
 # TODO Each \u TrailSurrogate for which the choice of associated u LeadSurrogate is ambiguous shall be associated with the nearest possible u LeadSurrogate that would otherwise have no corresponding \u TrailSurrogate.
 
 # LeadSurrogate ::
 #     Hex4Digitsbut only if the SV of Hex4Digits is in the inclusive range 0xD800 to 0xDBFF
 LeadSurrogate ->
-    Hex4Digits # TODO but only if the SV of Hex4Digits is in the inclusive range 0xD800 to 0xDBFF
+    Hex4Digits {% LeadSurrogate %}
+@{%
+function LeadSurrogate([d], l, reject) {
+  return d >= 0xD800n && d <= 0xDBFFn ? d : reject;
+}
+%}
 
 # TrailSurrogate ::
 #     Hex4Digitsbut only if the SV of Hex4Digits is in the inclusive range 0xDC00 to 0xDFFF
 TrailSurrogate ->
-    Hex4Digits # TODO but only if the SV of Hex4Digits is in the inclusive range 0xDC00 to 0xDFFF
+    Hex4Digits {% TrailSurrogate %}
+@{%
+function TrailSurrogate([d], l, reject) {
+  return d >= 0xDC00n && d <= 0xDFFFn ? d : reject;
+}
+%}
 
 # NonSurrogate ::
 #     Hex4Digitsbut only if the SV of Hex4Digits is not in the inclusive range 0xD800 to 0xDFFF
 NonSurrogate ->
-    Hex4Digits # TODO but only if the SV of Hex4Digits is not in the inclusive range 0xD800 to 0xDFFF
+    Hex4Digits {% NonSurrogate %}
+@{%
+function NonSurrogate([d], l, reject) {
+  return d >= 0xD800n && d <= 0xDFFFn ? d : reject;
+}
+%}
 
 # IdentityEscape[U] ::
 # [+U] SyntaxCharacter
@@ -446,55 +503,70 @@ DecimalEscape ->
 #     [+U] p{ UnicodePropertyValueExpression }
 #     [+U] P{ UnicodePropertyValueExpression }
 CharacterClassEscape ->
-    "d"
-  | "D"
-  | "s"
-  | "S"
-  | "w"
-  | "W"
+    [dDsSwW] {% CharacterClassEscape %}
 CharacterClassEscape_U ->
-    "d"
-  | "D"
-  | "s"
-  | "S"
-  | "w"
-  | "W"
-  | "p{" UnicodePropertyValueExpression "}"
-  | "P{" UnicodePropertyValueExpression "}"
+    [dDsSwW]                                 {% CharacterClassEscape %}
+  | "p{"i UnicodePropertyValueExpression "}" {% CharacterClassEscape_UnicodePropertyValueExpression %}
+@{%
+function CharacterClassEscape([c]) {
+  return { type: 'CharacterClassEscape', subtype: c };
+}
+function CharacterClassEscape_UnicodePropertyValueExpression([p, UnicodePropertyValueExpression]) {
+  return { type: 'CharacterClassEscape', subtype: 'UnicodePropertyValueExpression', UnicodePropertyValueExpression };
+}
+%}
 
 # UnicodePropertyValueExpression ::
 #     UnicodePropertyName = UnicodePropertyValue
 #     LoneUnicodePropertyNameOrValue
 UnicodePropertyValueExpression ->
-    UnicodePropertyName "=" UnicodePropertyValue
-  | LoneUnicodePropertyNameOrValue
+    UnicodePropertyName "=" UnicodePropertyValue {% UnicodePropertyValueExpression %}
+  | LoneUnicodePropertyNameOrValue               {% UnicodePropertyValueExpression_LoneUnicodePropertyNameOrValue %}
+@{%
+function UnicodePropertyValueExpression([UnicodePropertyName, e, UnicodePropertyValueValue]) {
+  return { type: 'UnicodePropertyValueExpression', subtype: 'UnicodePropertyName_UnicodePropertyValueValue', UnicodePropertyName, UnicodePropertyValueValue };
+}
+function UnicodePropertyValueExpression_LoneUnicodePropertyNameOrValue([LoneUnicodePropertyNameOrValue]) {
+  return { type: 'UnicodePropertyValueExpression', subtype: 'LoneUnicodePropertyNameOrValue', LoneUnicodePropertyNameOrValue };
+}
+%}
 
 # UnicodePropertyName ::
 #     UnicodePropertyNameCharacters
 UnicodePropertyName ->
-    UnicodePropertyNameCharacters
+    UnicodePropertyNameCharacters {% id %}
 
 # UnicodePropertyNameCharacters ::
 #     UnicodePropertyNameCharacter UnicodePropertyNameCharacters_opt
 UnicodePropertyNameCharacters ->
-    UnicodePropertyNameCharacter
-  | UnicodePropertyNameCharacter UnicodePropertyNameCharacters
+    UnicodePropertyNameCharacter                               {% id %}
+  | UnicodePropertyNameCharacter UnicodePropertyNameCharacters {% UnicodePropertyNameCharacters %}
+@{%
+function UnicodePropertyNameCharacters([char, chars]) {
+  return char + chars;
+}
+%}
 
 # UnicodePropertyValue ::
 #     UnicodePropertyValueCharacters
 UnicodePropertyValue ->
-    UnicodePropertyValueCharacters
+    UnicodePropertyValueCharacters {% id %}
 
 # LoneUnicodePropertyNameOrValue ::
 #     UnicodePropertyValueCharacters
 LoneUnicodePropertyNameOrValue ->
-    UnicodePropertyValueCharacters
+    UnicodePropertyValueCharacters {% id %}
 
 # UnicodePropertyValueCharacters ::
 #     UnicodePropertyValueCharacter UnicodePropertyValueCharacters_opt
 UnicodePropertyValueCharacters ->
-    UnicodePropertyValueCharacter
-  | UnicodePropertyValueCharacter UnicodePropertyValueCharacters
+    UnicodePropertyValueCharacter                                {% id %}
+  | UnicodePropertyValueCharacter UnicodePropertyValueCharacters {% UnicodePropertyValueCharacters %}
+@{%
+function UnicodePropertyValueCharacters([char, chars]) {
+  return char + chars;
+}
+%}
 
 # UnicodePropertyValueCharacter ::
 #     UnicodePropertyNameCharacter
@@ -509,15 +581,15 @@ UnicodePropertyValueCharacters ->
 #     8
 #     9
 UnicodePropertyValueCharacter ->
-    UnicodePropertyNameCharacter
-  | [0-9]
+    UnicodePropertyNameCharacter {% id %}
+  | [0-9]                        {% id %}
 
 # UnicodePropertyNameCharacter ::
 #     ControlLetter
 #     _
 UnicodePropertyNameCharacter ->
-    ControlLetter
-  | "_"
+    ControlLetter {% id %}
+  | "_"           {% id %}
 
 # CharacterClass[U] ::
 #     [ [lookahead ∉ { ^ } ] ClassRanges[?U] ]
@@ -541,11 +613,19 @@ function CharacterClass_Evaluate(inverted, [_, ClassRanges], l, reject) {
 #     [empty]
 #     NonemptyClassRanges[?U]
 ClassRanges ->
-    null
-  | NonemptyClassRanges
+    null {% ClassRanges_Empty %}
+  | NonemptyClassRanges {% ClassRanges_NonemptyClassRanges %}
 ClassRanges_U ->
-    null
-  | NonemptyClassRanges_U
+    null {% ClassRanges_Empty %}
+  | NonemptyClassRanges_U {% ClassRanges_NonemptyClassRanges %}
+@{%
+function ClassRanges_Empty() {
+  return null;
+}
+function ClassRanges_NonemptyClassRanges([NonemptyClassRanges]) {
+  return { type: 'ClassRanges', NonemptyClassRanges };
+}
+%}
 
 # NonemptyClassRanges[U] ::
 #     ClassAtom[?U]
@@ -602,26 +682,55 @@ const ClassAtomNoDash = { test: /./.test.bind(/[^\\\]\-]/u) };
 #     CharacterClassEscape[?U]
 #     CharacterEscape[?U]
 ClassEscape ->
-    "b"
-  | CharacterClassEscape
-  | CharacterEscape
+    "b" {% ClassEscape_B %}
+  | CharacterClassEscape {% ClassEscape_CharacterClassEscape %}
+  | CharacterEscape {% ClassEscape_CharacterEscape %}
 ClassEscape_U ->
-    "b"
-  | "-"
-  | CharacterClassEscape_U
-  | CharacterEscape_U
+    "b" {% ClassEscape_B %}
+  | "-" {% ClassEscape_Dash %}
+  | CharacterClassEscape_U {% ClassEscape_CharacterClassEscape %}
+  | CharacterEscape_U {% ClassEscape_CharacterEscape %}
+@{%
+function ClassEscape_B() {
+  return { type: 'ClassEscape', subtype: 'b' };
+}
+function ClassEscape_Dash() {
+  return { type: 'ClassEscape', subtype: '-' };
+}
+function ClassEscape_CharacterClassEscape([CharacterClassEscape]) {
+  return { type: 'ClassEscape', subtype: 'CharacterClassEscape', CharacterClassEscape };
+}
+function ClassEscape_CharacterEscape([CharacterEscape]) {
+  return { type: 'ClassEscape', subtype: 'CharacterEscape', CharacterEscape };
+}
+%}
 
 # HexEscapeSequence ::
 #     x HexDigit HexDigit
 HexEscapeSequence ->
-    "x" HexDigit HexDigit
+    "x" HexDigit HexDigit {% HexEscapeSequence %}
+@{%
+function HexEscapeSequence([x, d1, d0]) {
+  return d1 * 16n + d0;
+}
+%}
 
 # Hex4Digits ::
 #     HexDigit HexDigit HexDigit HexDigit
 Hex4Digits ->
-    HexDigit HexDigit HexDigit HexDigit
+    HexDigit HexDigit HexDigit HexDigit {% Hex4Digits %}
+@{%
+function Hex4Digits([d3, d2, d1, d0]) {
+  return d3 * 16n ** 3n + d2 * 16n ** 2n + d1 * 16n + d0;
+}
+%}
 
 # CodePoint ::
 #     HexDigits but only if MV of HexDigits ≤ 0x10FFFF
 CodePoint ->
-    HexDigits # TODO HexDigits but only if MV of HexDigits ≤ 0x10FFFF
+    HexDigits {% CodePoint %}
+@{%
+function CodePoint([d], l, reject) {
+  return d <= 0x10FFFFn ? d : reject;
+}
+%}
