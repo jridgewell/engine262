@@ -2,9 +2,6 @@
 
 @{%
 import Scientific from './Scientific.mjs';
-function c(val) {
-  return () => val;
-}
 %}
 
 @include "./BasicNumerals.ne"

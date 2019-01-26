@@ -3,9 +3,6 @@
 function id(x) { return x[0]; }
 
 import Scientific from './Scientific.mjs';
-function c(val) {
-  return () => val;
-}
 
 
 function c(val) {
