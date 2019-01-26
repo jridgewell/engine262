@@ -36,7 +36,7 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
           return m;
         } else {
           const m1 = Evaluate_Alternative(Disjunction.Alternative, direction);
-          const m2 = Evaluate_Alternative(Disjunction.Disjunction, direction);
+          const m2 = Evaluate_Disjunction(Disjunction.Disjunction, direction);
           return (x, c) => {
             const r = m1(x, c);
             if (r !== MatchResultFailure) {
