@@ -47,3 +47,69 @@ export function parseRegExp(tokens, options) {
   }
   return results[0];
 }
+
+export function walk(rootNode, visitors) {
+  function c(node) {
+    const type = node.type;
+    if (!visitor[type]) {
+      throw new Error(`unimplemented visitor[${type}]`);
+    }
+    visitor[type](node, c);
+    if (visitors[type]) {
+      visitors[type](node);
+    }
+  }
+  c(rootNode);
+}
+
+const ignore = () => {};
+
+const visitor = {};
+
+visitor.Pattern = (node, c) => {
+  c(node.Disjunction);
+};
+
+visitor.Disjunction = (node, c) => {
+  for (const alt of node.Alternatives) {
+    c(alt);
+  }
+};
+
+visitor.Alternative = (node, c) => {
+  for (const term of node.Terms) {
+    c(term);
+  }
+};
+
+visitor.Term = (node, c) => {
+  switch (node.subtype) {
+    case 'Atom':
+      c(node.Atom);
+      break;
+    case 'AtomQuantifier':
+      c(node.Atom);
+      c(node.Quantifier);
+      break;
+    default:
+      throw new Error(`unhandled subtype Term:${node.subtype}`);
+  }
+};
+
+visitor.Atom = (node, c) => {
+  switch (node.subtype) {
+    case 'AtomGroup':
+      c(node.Disjunction);
+      break;
+    default:
+      throw new Error(`unhandled subtype Atom:${node.subtype}`);
+  }
+};
+
+visitor.CharacterClass = ignore;
+
+visitor.Quantifier = (node, c) => {
+  c(node.QuantifierPrefix);
+};
+
+visitor.QuantifierPrefix = ignore;

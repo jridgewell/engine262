@@ -211,7 +211,7 @@ function Atom_escape([l, AtomEscape]) {
 }
 
 function Atom_group([l, GroupSpecifier, Disjunction]) {
-  return { type: 'Atom', subtype: 'AtomGroup', capturing: true, GroupSpecifier, Disjunction };
+  return { type: 'Atom', subtype: 'AtomGroup', capturing: true, name: GroupSpecifier, Disjunction };
 }
 
 function Atom_nonCapturingGroup([l, Disjunction]) {
@@ -348,7 +348,7 @@ function GroupSpecifier_empty() {
   return null;
 }
 function GroupSpecifier_GroupName([l, GroupName]) {
-  return { type: 'GroupSpecifier', GroupName };
+  return GroupName;
 }
 %}
 
