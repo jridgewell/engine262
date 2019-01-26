@@ -7,7 +7,8 @@ const lookahead = (start, length) => rawLookahead('RegExp', start, length).join(
 
 @include "./BasicNumerals.ne"
 
-# Pattern[U, N] ::
+# #prod-Pattern
+#   Pattern[U, N] ::
 #     Disjunction[?U, ?N]
 Pattern ->
     Disjunction     {% Pattern_Disjunction %}
@@ -21,9 +22,10 @@ Pattern_U_N ->
 const Pattern_Disjunction = ([Disjunction]) => ({ type: 'Pattern', Disjunction });
 %}
 
-# Disjunction[U, N] ::
+# #prod-Disjunction
+#   Disjunction[U, N] ::
 #     Alternative[?U, ?N]
-#     Alternative[?U, ?N] | Disjunction[?U, ?N]
+#     Alternative[?U, ?N] `|` Disjunction[?U, ?N]
 Disjunction ->
     Alternative                 {% Disjunction_Alternative %}
   | Alternative "|" Disjunction {% Disjunction_Alternative_Disjunction %}
@@ -41,7 +43,8 @@ const Disjunction_Alternative = ([Alternative]) => ({ type: 'Disjunction', Alter
 const Disjunction_Alternative_Disjunction = ([Alternative, _, Disjunction]) => ({ type: 'Disjunction', Alternatives: [Alternative, ...Disjunction.Alternatives] });
 %}
 
-# Alternative[U, N] ::
+# #prod-Alternative
+#   Alternative[U, N] ::
 #     [empty]
 #     Alternative[?U, ?N] Term[?U, ?N]
 Alternative ->
@@ -64,7 +67,8 @@ const Alternative_Alternative_Term = ([Alternative, Term]) => {
 };
 %}
 
-# Term[U, N] ::
+# #prod-Term
+#   Term[U, N] ::
 #     Assertion[?U, ?N]
 #     Atom[?U, ?N]
 #     Atom[?U, ?N] Quantifier
@@ -90,15 +94,16 @@ const Term_Atom = ([Atom]) => ({ type: 'Term', subtype: 'Atom', Atom });
 const Term_Atom_Quantifier = ([Atom, Quantifier]) => ({ type: 'Term', subtype: 'AtomQuantifier', Atom, Quantifier });
 %}
 
-# Assertion[U, N]::
-#     ^
-#     $
-#     \ b
-#     \ B
-#     (?= Disjunction[?U, ?N] )
-#     (?! Disjunction[?U, ?N] )
-#     (?<= Disjunction[?U, ?N] )
-#     (?<! Disjunction[?U, ?N] )
+# #prod-Assertion
+#   Assertion[U, N]::
+#     `^`
+#     `$`
+#     `\` `b`
+#     `\` `B`
+#     `(` `?` `=` Disjunction[?U, ?N] `)`
+#     `(` `?` `!` Disjunction[?U, ?N] `)`
+#     `(` `?` `<=` Disjunction[?U, ?N] `)`
+#     `(` `?` `<!` Disjunction[?U, ?N] `)`
 Assertion ->
     "^"                    {% Assertion_nt %}
   | "$"                    {% Assertion_nt %}
@@ -140,21 +145,23 @@ const Assertion_nt = ([ch]) => ({ type: 'Assertion', subtype: ch });
 const Assertion_Disjunction = ([ch, Disjunction]) => ({ type: 'Assertion', subtype: ch, Disjunction });
 %}
 
-# Quantifier ::
+# #prod-Quantifier
+#   Quantifier ::
 #     QuantifierPrefix
-#     QuantifierPrefix ?
+#     QuantifierPrefix `?`
 Quantifier ->
     QuantifierPrefix     {% ([QuantifierPrefix]) => ({ type: 'Quantifier', QuantifierPrefix, lazy: false }) %}
   | QuantifierPrefix "?" {% ([QuantifierPrefix]) => ({ type: 'Quantifier', QuantifierPrefix, lazy: true }) %}
 
 
-# QuantifierPrefix ::
-#     *
-#     +
-#     ?
-#     { DecimalDigits }
-#     { DecimalDigits , }
-#     { DecimalDigits , DecimalDigits }
+# #prod-QuantifierPrefix
+#   QuantifierPrefix ::
+#     `*`
+#     `+`
+#     `?`
+#     `{` DecimalDigits `}`
+#     `{` DecimalDigits `,` `}`
+#     `{` DecimalDigits `,` DecimalDigits `}`
 QuantifierPrefix ->
     "*" {% QuantifierPrefix_nt %}
   | "+" {% QuantifierPrefix_nt %}
@@ -166,13 +173,14 @@ QuantifierPrefix ->
 const QuantifierPrefix_nt = ([ch]) => ({ type: 'QuantifierPrefix', subtype: ch });
 %}
 
-# Atom[U, N] ::
+# #prod-Atom
+#   Atom[U, N] ::
 #     PatternCharacter
-#     .
-#     \ AtomEscape[?U, ?N]
+#     `.`
+#     `\` AtomEscape[?U, ?N]
 #     CharacterClass[?U]
-#     ( GroupSpecifier[?U] Disjunction[?U, ?N] )
-#     ( ? : Disjunction[?U, ?N] )
+#     `(` GroupSpecifier[?U] Disjunction[?U, ?N] `)`
+#     `(` `?` `:` Disjunction[?U, ?N] `)`
 Atom ->
     PatternCharacter {% id %}
   | "."
@@ -202,12 +210,14 @@ Atom_U_N ->
   | "(" GroupSpecifier_U Disjunction_U_N ")"
   | "(?:" Disjunction_U_N ")"
 
-# SyntaxCharacter :: one of
-#     ^$\.*+?()[]{}|
+# #prod-SyntaxCharacter
+#   SyntaxCharacter :: one of
+#     `^` `$` `\` `.` `*` `+` `?` `(` `)` `[` `]` `{` `}` `|`
 SyntaxCharacter ->
     [$^\\.*+?()[\]{}|]
 
-# PatternCharacter ::
+# #prod-PatternCharacter
+#   PatternCharacter ::
 #     SourceCharacter but not SyntaxCharacter
 PatternCharacter ->
     %PatternCharacter {% ([c]) => ({ PatternCharacter: c }) %}
@@ -215,11 +225,12 @@ PatternCharacter ->
 const PatternCharacter = { test: /./.test.bind(/[^^$\\.*+?()[\]{}|]/u) };
 %}
 
-# AtomEscape[U, N] ::
+# #prod-AtomEscape
+#   AtomEscape[U, N] ::
 #     DecimalEscape
 #     CharacterClassEscape[?U]
 #     CharacterEscape[?U]
-#     [+N] k GroupName[?U]
+#     [+N] `k` GroupName[?U]
 AtomEscape ->
     DecimalEscape        {% AtomEscape_DecimalEscape %}
   | CharacterClassEscape {% AtomEscape_CharacterClassEscape %}
@@ -256,10 +267,11 @@ function AtomEscape_GroupName([_, GroupName]) {
 }
 %}
 
-# CharacterEscape[U] ::
+# #prod-CharacterEscape
+#   CharacterEscape[U] ::
 #     ControlEscape
-#     c ControlLetter
-#     0 [lookahead ∉ DecimalDigit]
+#     `c` ControlLetter
+#     `0` [lookahead ∉ DecimalDigit]
 #     HexEscapeSequence
 #     RegExpUnicodeEscapeSequence[?U]
 #     IdentityEscape[?U]
@@ -306,19 +318,24 @@ function CharacterEscape_IdentityEscape([IdentityEscape]) {
 }
 %}
 
-# ControlEscape :: one of
-#     fnrtv
+# #prod-ControlEscape
+#   ControlEscape :: one of
+#     `f` `n` `r` `t` `v`
 ControlEscape ->
     [fnrtv]
 
-# ControlLetter :: one of
-#     abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
+# #prod-ControlLetter
+#   ControlLetter :: one of
+#     `a` `b` `c` `d` `e` `f` `g` `h` `i` `j` `k` `l` `m` `n` `o` `p` `q` `r` `s`
+#     `t` `u` `v` `w` `x` `y` `z` `A` `B` `C` `D` `E` `F` `G` `H` `I` `J` `K` `L`
+#     `M` `N` `O` `P` `Q` `R` `S` `T` `U` `V` `W` `X` `Y` `Z` 
 ControlLetter ->
     [abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ]
 
-# GroupSpecifier[U] ::
+# #prod-GroupSpecifier
+#   GroupSpecifier[U] ::
 #     [empty]
-#     ? GroupName[?U]
+#     `?` GroupName[?U]
 GroupSpecifier ->
     null
   | "?" GroupName
@@ -326,14 +343,16 @@ GroupSpecifier_U ->
     null
   | "?" GroupName_U
 
-# GroupName[U] ::
-#     < RegExpIdentifierName[?U] >
+# #prod-GroupName
+#   GroupName[U] ::
+#     `<` RegExpIdentifierName[?U] `>`
 GroupName ->
     "<" RegExpIdentifierName ">"
 GroupName_U ->
     "<" RegExpIdentifierName_U ">"
 
-# RegExpIdentifierName[U] ::
+# #prod-RegExpIdentifierName
+#   RegExpIdentifierName[U] ::
 #     RegExpIdentifierStart[?U]
 #     RegExpIdentifierName[?U] RegExpIdentifierPart[?U]
 RegExpIdentifierName ->
@@ -343,11 +362,12 @@ RegExpIdentifierName_U ->
     RegExpIdentifierStart_U
   | RegExpIdentifierName_U RegExpIdentifierPart_U
 
-# RegExpIdentifierStart[U] ::
+# #prod-RegExpIdentifierStart
+#   RegExpIdentifierStart[U] ::
 #     UnicodeIDStart
-#     $
-#     _
-#     \ RegExpUnicodeEscapeSequence[?U]
+#     `$`
+#     `_`
+#     `\` RegExpUnicodeEscapeSequence[?U]
 RegExpIdentifierStart ->
     [a-zA-Z]# TODO UnicodeIDStart
   | "$"
@@ -359,10 +379,11 @@ RegExpIdentifierStart_U ->
   | "_"
   | "\\" RegExpUnicodeEscapeSequence_U
 
-# RegExpIdentifierPart[U] ::
+# #prod-RegExpIdentifierPart
+#   RegExpIdentifierPart[U] ::
 #     UnicodeIDContinue
-#     $
-#     \ RegExpUnicodeEscapeSequence[?U]
+#     `$`
+#     `\` RegExpUnicodeEscapeSequence[?U]
 #     <ZWNJ>
 #     <ZWJ>
 RegExpIdentifierPart ->
@@ -378,13 +399,14 @@ RegExpIdentifierPart_U ->
   | [\u200C]
   | [\u200D]
 
-# RegExpUnicodeEscapeSequence[U] ::
-# [+U] u LeadSurrogate \u TrailSurrogate
-# [+U] u LeadSurrogate
-# [+U] u TrailSurrogate
-# [+U] u NonSurrogate
-# [~U] u Hex4Digits
-# [+U] u{ CodePoint }
+# #prod-RegExpUnicodeEscapeSequence
+#   RegExpUnicodeEscapeSequence[U] ::
+#     [+U] `u` LeadSurrogate `\u` TrailSurrogate
+#     [+U] `u` LeadSurrogate
+#     [+U] `u` TrailSurrogate
+#     [+U] `u` NonSurrogate
+#     [~U] `u` Hex4Digits
+#     [+U] `u{` CodePoint `}`
 RegExpUnicodeEscapeSequence ->
     "u" Hex4Digits
 RegExpUnicodeEscapeSequence_U ->
@@ -394,27 +416,31 @@ RegExpUnicodeEscapeSequence_U ->
   | "u" NonSurrogate
   | "u{" CodePoint "}"
 
-# TODO Each \u TrailSurrogate for which the choice of associated u LeadSurrogate is ambiguous shall be associated with the nearest possible u LeadSurrogate that would otherwise have no corresponding \u TrailSurrogate.
+# TODO Each `\u` TrailSurrogate for which the choice of associated `u` LeadSurrogate is ambiguous shall be associated with the nearest possible `u` LeadSurrogate that would otherwise have no corresponding `\u` TrailSurrogate.
 
-# LeadSurrogate ::
-#     Hex4Digitsbut only if the SV of Hex4Digits is in the inclusive range 0xD800 to 0xDBFF
+# #prod-LeadSurrogate
+#   LeadSurrogate ::
+#     Hex4Digits but only if the SV of Hex4Digits is in the inclusive range 0xD800 to 0xDBFF
 LeadSurrogate ->
     Hex4Digits # TODO but only if the SV of Hex4Digits is in the inclusive range 0xD800 to 0xDBFF
 
-# TrailSurrogate ::
-#     Hex4Digitsbut only if the SV of Hex4Digits is in the inclusive range 0xDC00 to 0xDFFF
+# #prod-TrailSurrogate
+#   TrailSurrogate ::
+#     Hex4Digits but only if the SV of Hex4Digits is in the inclusive range 0xDC00 to 0xDFFF
 TrailSurrogate ->
     Hex4Digits # TODO but only if the SV of Hex4Digits is in the inclusive range 0xDC00 to 0xDFFF
 
-# NonSurrogate ::
-#     Hex4Digitsbut only if the SV of Hex4Digits is not in the inclusive range 0xD800 to 0xDFFF
+# #prod-NonSurrogate
+#   NonSurrogate ::
+#     Hex4Digits but only if the SV of Hex4Digits is not in the inclusive range 0xD800 to 0xDFFF
 NonSurrogate ->
     Hex4Digits # TODO but only if the SV of Hex4Digits is not in the inclusive range 0xD800 to 0xDFFF
 
-# IdentityEscape[U] ::
-# [+U] SyntaxCharacter
-# [+U] /
-# [~U] SourceCharacter but not UnicodeIDContinue
+# #prod-IdentityEscape
+#   IdentityEscape[U] ::
+#     [+U] SyntaxCharacter
+#     [+U] `/`
+#     [~U] SourceCharacter but not UnicodeIDContinue
 IdentityEscape ->
     %IdentityEscape {% id %}
 @{%
@@ -430,21 +456,23 @@ IdentityEscape_U ->
 # Implements CapturingGroupNumber
 # 21.2.1.2 #sec-patterns-static-semantics-capturing-group-number
 
-# DecimalEscape ::
-#   NonZeroDigit DecimalDigits_opt [lookahead ∉ DecimalDigit]
+# #prod-DecimalEscape
+#   DecimalEscape ::
+#     NonZeroDigit DecimalDigits_opt [lookahead ∉ DecimalDigit]
 DecimalEscape ->
     NonZeroDigit {% ([NonZeroDigit], l, reject) => /^[0-9]$/.test(lookahead(l + 1, 1)) ? reject : { type: 'DecimalEscape', value: NonZeroDigit } %}
   | NonZeroDigit DecimalDigits {% ([NonZeroDigit, [DecimalDigits, n]], l, reject) => /^[0-9]$/.test(lookahead(l + 1 + Number(n), 1)) ? reject : { type: 'DecimalEscape', value: (NonZeroDigit * 10n ** n) + DecimalDigits } %}
 
-# CharacterClassEscape[U] ::
-#     d
-#     D
-#     s
-#     S
-#     w
-#     W
-#     [+U] p{ UnicodePropertyValueExpression }
-#     [+U] P{ UnicodePropertyValueExpression }
+# #prod-CharacterClassEscape
+#   CharacterClassEscape[U] ::
+#     `d`
+#     `D`
+#     `s`
+#     `S`
+#     `w`
+#     `W`
+#     [+U] `p{` UnicodePropertyValueExpression `}`
+#     [+U] `P{` UnicodePropertyValueExpression `}`
 CharacterClassEscape ->
     "d"
   | "D"
@@ -462,66 +490,75 @@ CharacterClassEscape_U ->
   | "p{" UnicodePropertyValueExpression "}"
   | "P{" UnicodePropertyValueExpression "}"
 
-# UnicodePropertyValueExpression ::
-#     UnicodePropertyName = UnicodePropertyValue
+# #prod-UnicodePropertyValueExpression
+#   UnicodePropertyValueExpression ::
+#     UnicodePropertyName `=` UnicodePropertyValue
 #     LoneUnicodePropertyNameOrValue
 UnicodePropertyValueExpression ->
     UnicodePropertyName "=" UnicodePropertyValue
   | LoneUnicodePropertyNameOrValue
 
-# UnicodePropertyName ::
+# #prod-UnicodePropertyName
+#   UnicodePropertyName ::
 #     UnicodePropertyNameCharacters
 UnicodePropertyName ->
     UnicodePropertyNameCharacters
 
-# UnicodePropertyNameCharacters ::
+# #prod-UnicodePropertyNameCharacters
+#   UnicodePropertyNameCharacters ::
 #     UnicodePropertyNameCharacter UnicodePropertyNameCharacters_opt
 UnicodePropertyNameCharacters ->
     UnicodePropertyNameCharacter
   | UnicodePropertyNameCharacter UnicodePropertyNameCharacters
 
-# UnicodePropertyValue ::
+# #prod-UnicodePropertyValue
+#   UnicodePropertyValue ::
 #     UnicodePropertyValueCharacters
 UnicodePropertyValue ->
     UnicodePropertyValueCharacters
 
-# LoneUnicodePropertyNameOrValue ::
+# #prod-LoneUnicodePropertyNameOrValue
+#   LoneUnicodePropertyNameOrValue ::
 #     UnicodePropertyValueCharacters
 LoneUnicodePropertyNameOrValue ->
     UnicodePropertyValueCharacters
 
-# UnicodePropertyValueCharacters ::
+# #prod-UnicodePropertyValueCharacters
+#   UnicodePropertyValueCharacters ::
 #     UnicodePropertyValueCharacter UnicodePropertyValueCharacters_opt
 UnicodePropertyValueCharacters ->
     UnicodePropertyValueCharacter
   | UnicodePropertyValueCharacter UnicodePropertyValueCharacters
 
-# UnicodePropertyValueCharacter ::
+# #prod-UnicodePropertyValueCharacter
+#   UnicodePropertyValueCharacter ::
 #     UnicodePropertyNameCharacter
-#     0
-#     1
-#     2
-#     3
-#     4
-#     5
-#     6
-#     7
-#     8
-#     9
+#     `0`
+#     `1`
+#     `2`
+#     `3`
+#     `4`
+#     `5`
+#     `6`
+#     `7`
+#     `8`
+#     `9`
 UnicodePropertyValueCharacter ->
     UnicodePropertyNameCharacter
   | [0-9]
 
-# UnicodePropertyNameCharacter ::
+# #prod-UnicodePropertyNameCharacter
+#   UnicodePropertyNameCharacter ::
 #     ControlLetter
-#     _
+#     `_`
 UnicodePropertyNameCharacter ->
     ControlLetter
   | "_"
 
-# CharacterClass[U] ::
-#     [ [lookahead ∉ { ^ } ] ClassRanges[?U] ]
-#     [ ^ClassRanges[?U] ]
+# #prod-CharacterClass
+#   CharacterClass[U] ::
+#     `[` [lookahead ∉ { `^` } ] ClassRanges[?U] `]`
+#     `[` `^` ClassRanges[?U] `]`
 CharacterClass ->
     "[" ClassRanges "]"  {% CharacterClass_Evaluate.bind(undefined, false) %}
   | "[^" ClassRanges "]" {% CharacterClass_Evaluate.bind(undefined, true) %}
@@ -537,7 +574,8 @@ function CharacterClass_Evaluate(inverted, [_, ClassRanges], l, reject) {
 }
 %}
 
-# ClassRanges[U] ::
+# #prod-ClassRanges
+#   ClassRanges[U] ::
 #     [empty]
 #     NonemptyClassRanges[?U]
 ClassRanges ->
@@ -547,10 +585,11 @@ ClassRanges_U ->
     null
   | NonemptyClassRanges_U
 
-# NonemptyClassRanges[U] ::
+# #prod-NonemptyClassRanges
+#   NonemptyClassRanges[U] ::
 #     ClassAtom[?U]
 #     ClassAtom[?U] NonemptyClassRangesNoDash[?U]
-#     ClassAtom[?U] - ClassAtom[?U] ClassRanges[?U]
+#     ClassAtom[?U] `-` ClassAtom[?U] ClassRanges[?U]
 NonemptyClassRanges ->
     ClassAtom
   | ClassAtom NonemptyClassRangesNoDash
@@ -560,10 +599,11 @@ NonemptyClassRanges ->
   | ClassAtom_U NonemptyClassRangesNoDash_U
   | ClassAtom_U "-" ClassAtom_U ClassRanges_U
 
-# NonemptyClassRangesNoDash[U] ::
+# #prod-NonemptyClassRangesNoDash
+#   NonemptyClassRangesNoDash[U] ::
 #     ClassAtom[?U]
 #     ClassAtomNoDash[?U] NonemptyClassRangesNoDash[?U]
-#     ClassAtomNoDash[?U] - ClassAtom[?U] ClassRanges[?U]
+#     ClassAtomNoDash[?U] `-` ClassAtom[?U] ClassRanges[?U]
 NonemptyClassRangesNoDash ->
     ClassAtom
   | ClassAtomNoDash NonemptyClassRangesNoDash
@@ -573,8 +613,9 @@ NonemptyClassRangesNoDash_U ->
   | ClassAtomNoDash_U NonemptyClassRangesNoDash_U
   | ClassAtomNoDash_U "-" ClassAtom_U ClassRanges_U
 
-# ClassAtom[U] ::
-#     -
+# #prod-ClassAtom
+#   ClassAtom[U] ::
+#     `-`
 #     ClassAtomNoDash[?U]
 ClassAtom ->
     "-"
@@ -583,9 +624,10 @@ ClassAtom_U ->
     "-"
   | ClassAtomNoDash_U
 
-# ClassAtomNoDash[U] ::
-#   SourceCharacter but not one of \ or ] or -
-#   \ ClassEscape[?U]
+# #prod-ClassAtomNoDash
+#   ClassAtomNoDash[U] ::
+#     SourceCharacter but not one of `\` or `]` or `-`
+#     `\` ClassEscape[?U]
 ClassAtomNoDash ->
     %ClassAtomNoDash
   | "\\" ClassEscape
@@ -596,9 +638,10 @@ ClassAtomNoDash_U ->
 const ClassAtomNoDash = { test: /./.test.bind(/[^\\\]\-]/u) };
 %}
 
-# ClassEscape[U] ::
-#     b
-#     [+U] -
+# #prod-ClassEscape
+#   ClassEscape[U] ::
+#     `b`
+#     [+U] `-`
 #     CharacterClassEscape[?U]
 #     CharacterEscape[?U]
 ClassEscape ->
@@ -611,17 +654,28 @@ ClassEscape_U ->
   | CharacterClassEscape_U
   | CharacterEscape_U
 
-# HexEscapeSequence ::
-#     x HexDigit HexDigit
+########################################
+# 11.8.4 #sec-literals-string-literals #
+########################################
+
+# #prod-HexEscapeSequence
+#   HexEscapeSequence ::
+#     `x` HexDigit HexDigit
 HexEscapeSequence ->
     "x" HexDigit HexDigit
 
-# Hex4Digits ::
+# #prod-Hex4Digits
+#   Hex4Digits ::
 #     HexDigit HexDigit HexDigit HexDigit
 Hex4Digits ->
     HexDigit HexDigit HexDigit HexDigit
 
-# CodePoint ::
+###################################################
+# 11.8.6 #sec-template-literal-lexical-components #
+###################################################
+
+# #prod-CodePoint
+#   CodePoint ::
 #     HexDigits but only if MV of HexDigits ≤ 0x10FFFF
 CodePoint ->
     HexDigits # TODO HexDigits but only if MV of HexDigits ≤ 0x10FFFF
