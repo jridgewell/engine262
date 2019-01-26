@@ -17,7 +17,11 @@ import {
   ToString,
   ToUint32,
 } from '../abstract-ops/all.mjs';
-import { GetSubstitution } from '../runtime-semantics/all.mjs';
+import {
+  GetSubstitution,
+  MatchResultFailure,
+  State,
+} from '../runtime-semantics/all.mjs';
 import {
   Type,
   Value,
@@ -86,14 +90,14 @@ function RegExpBuiltinExec(R, S) {
       return Value.null;
     }
     r = matcher(S, lastIndex);
-    if (r === null) {
+    if (r === MatchResultFailure) {
       if (sticky) {
         Q(Set(R, lastIndexStr, new Value(0), Value.true));
         return Value.null;
       }
       lastIndex = AdvanceStringIndex(S, lastIndex, fullUnicode ? Value.true : Value.false);
     } else {
-      // Assert: r is a state
+      Assert(r instanceof State);
       matchSucceeded = true;
     }
   }

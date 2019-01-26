@@ -73,6 +73,7 @@ export function parseRegExp(tokens, options) {
   return {
     pattern,
     nCapturingParens,
+    groupSpecifierNames,
   };
 }
 

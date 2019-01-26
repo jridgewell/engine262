@@ -11,6 +11,9 @@ import {
   Set,
   ToString,
 } from './all.mjs';
+import {
+  getMatcher,
+} from '../runtime-semantics/all.mjs';
 import { Q, X } from '../completion.mjs';
 import { msg } from '../helpers.mjs';
 import { parseRegExp } from '../grammar/RegExpParser.mjs';
@@ -51,22 +54,17 @@ export function RegExpInitialize(obj, pattern, flags) {
 
   let parsed;
   let patternCharacters;
-  if (BMP) {
-    patternCharacters = P.stringValue().split('');
-    parsed = parseRegExp(patternCharacters, { U: false, N: false });
-    if (parsed.groupNames.length > 0) {
-      parsed = parseRegExp(patternCharacters, { U: false, N: true });
-    }
-    // TODO: check for errors
-  } else {
-    patternCharacters = Array.from(P.stringValue());
-    parsed = parseRegExp(patternCharacters, { U: true, N: true });
-    // TODO: check for errors
-  }
-
-  // TODO: remove this once internal parsing is implemented
   try {
-    new RegExp(P.stringValue(), F.stringValue()); // eslint-disable-line no-new
+    if (BMP) {
+      patternCharacters = P.stringValue().split('');
+      parsed = parseRegExp(patternCharacters, { U: false, N: false });
+      if (parsed.groupSpecifierNames.size > 0) {
+        parsed = parseRegExp(patternCharacters, { U: false, N: true });
+      }
+    } else {
+      patternCharacters = Array.from(P.stringValue());
+      parsed = parseRegExp(patternCharacters, { U: true, N: true });
+    }
   } catch (e) {
     if (e instanceof SyntaxError) {
       return surroundingAgent.Throw('SyntaxError', e.message);
@@ -76,40 +74,10 @@ export function RegExpInitialize(obj, pattern, flags) {
 
   obj.OriginalSource = P;
   obj.OriginalFlags = F;
-  obj.RegExpMatcher = getMatcher(P, F, patternCharacters);
+  obj.RegExpMatcher = getMatcher(parsed, patternCharacters, F.stringValue());
 
   Q(Set(obj, new Value('lastIndex'), new Value(0), Value.true));
   return obj;
-}
-
-// TODO: implement an independant matcher
-function getMatcher(P, F) {
-  const regex = new RegExp(P.stringValue(), F.stringValue());
-  const unicode = F.stringValue().includes('u');
-  return function RegExpMatcher(S, lastIndex) {
-    regex.lastIndex = lastIndex.numberValue();
-    const result = regex.exec(S.stringValue());
-    if (result === null) {
-      return null;
-    }
-    if (result.index > lastIndex.numberValue()) {
-      return null;
-    }
-    const captures = [];
-    for (const capture of result.slice(1)) {
-      if (capture === undefined) {
-        captures.push(Value.undefined);
-      } else if (unicode) {
-        captures.push(Array.from(capture).map((char) => char.codePointAt(0)));
-      } else {
-        captures.push(capture.split('').map((char) => char.charCodeAt(0)));
-      }
-    }
-    return {
-      endIndex: new Value(result.index + result[0].length),
-      captures,
-    };
-  };
 }
 
 // 21.2.3.2.3 #sec-regexpcreate

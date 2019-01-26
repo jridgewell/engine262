@@ -56,6 +56,7 @@ export * from './PropertyName.mjs';
 export * from './RegularExpressionLiteral.mjs';
 export * from './RelationalOperators.mjs';
 export * from './RestBindingInitialization.mjs';
+export * from './RegExp.mjs';
 export * from './ReturnStatement.mjs';
 export * from './ShiftExpression.mjs';
 export * from './SuperCall.mjs';
