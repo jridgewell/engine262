@@ -8,7 +8,7 @@ import {
 } from '../abstract-ops/all.mjs';
 import { Q, X } from '../completion.mjs';
 import { Value } from '../value.mjs';
-import { searchNotStrWhiteSpaceChar } from '../grammar/numeric-string.mjs';
+import { searchNotStrWhiteSpaceChar } from '../grammar/util.mjs';
 
 function digitToNumber(digit) {
   digit = digit.charCodeAt(0);

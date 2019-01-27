@@ -4,9 +4,11 @@ import {
 import {
   Value,
 } from '../value.mjs';
+import { isLineTerminator } from '../grammar/util.mjs';
 
 // 21.2.2.1 #sec-notation
 export function getMatcher(parsedRegex, patternCharacters, flags) {
+  console.log(require('util').inspect(parsedRegex, { depth: Infinity, colors: true }));
   const {
     pattern,
     nCapturingParens: NcapturingParens,
@@ -16,17 +18,19 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
   const Multiline = flags.includes('m');
   const Unicode = flags.includes('u');
 
+  return Evaluate_Pattern(pattern);
+
   function Evaluate_Pattern(Pattern) {
-    return (str, index) => {
+    return (str, mainIndex) => {
       const mainM = Evaluate_Disjunction(Pattern.Disjunction, 1);
-      Assert(index <= str.length);
+      Assert(mainIndex <= str.length);
       const Input = Unicode ? Array.from(str) : str.split('');
       const InputLength = Input.length;
       // TODO: Let listIndex be the index into Input of the character that was obtained from element index of str.
-      const listIndex = index;
+      const listIndex = mainIndex;
       const mainC = (state) => state;
-      const cap = new Array(NcapturingParens).fill(Value.undefined);
-      const mainX = new State(listIndex, cap);
+      const mainCap = new Array(NcapturingParens).fill(Value.undefined);
+      const mainX = new State(listIndex, mainCap);
       return mainM(mainX, mainC);
 
       // 21.2.2.3 #sec-disjunction
@@ -86,7 +90,7 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
           return Evaluate_Atom(Term.Atom, direction);
         } else {
           const m = Evaluate_Atom(Term.Atom, direction);
-          const { max, min, greedy } = Term.Quantifier;
+          const { max, min, greedy } = Evaluate_Quantifier(Term.Quantifier);
           Assert(!Number.isFinite(max) || max >= min);
           // TODO: Let parenIndex be the number of left-capturing parentheses in the entire regular expression that occur to the left of this Term. This is the total number of Atom :: `(` GroupSpecifierDisjunction `)` Parse Nodes prior to or enclosing this Term.
           // TODO: Let parenCount be the number of left-capturing parentheses in Atom. This is the total number of Atom :: `(` GroupSpecifierDisjunction `)` Parse Nodes enclosed by Atom.
@@ -128,21 +132,271 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
         return c(x);
       }
 
+      // 21.2.2.6 #sec-assertion
+      function Evaluate_Assertion(Assertion) {
+        if (Assertion.subtype === '^') {
+          return (x) => {
+            const e = x.endIndex;
+            if (e === 0) {
+              return true;
+            }
+            if (Multiline === false) {
+              return false;
+            }
+            if (isLineTerminator(Input[e - 1])) {
+              return true;
+            }
+            return false;
+          };
+        }
+
+        if (Assertion.subtype === '$') {
+          return (x) => {
+            const e = x.endIndex;
+            if (e === InputLength) {
+              return true;
+            }
+            if (Multiline === false) {
+              return false;
+            }
+            if (isLineTerminator(Input[e])) {
+              return true;
+            }
+            return false;
+          };
+        }
+
+        if (Assertion.subtype === '\\b') {
+          return (x) => {
+            const e = x.endIndex;
+            const a = IsWordChar(e - 1);
+            const b = IsWordChar(e);
+            if (a === true && b === false) {
+              return true;
+            }
+            if (a === false && b === true) {
+              return true;
+            }
+            return false;
+          };
+        }
+
+        if (Assertion.subtype === '\\B') {
+          return (x) => {
+            const e = x.endIndex;
+            const a = IsWordChar(e - 1);
+            const b = IsWordChar(e);
+            if (a === true && b === false) {
+              return false;
+            }
+            if (a === false && b === true) {
+              return false;
+            }
+            return true;
+          };
+        }
+
+        if (Assertion.subtype === '(?=') {
+          const m = Evaluate_Disjunction(Assertion.Disjunction, 1);
+          return (x, c) => {
+            const d = (state) => state;
+            const r = m(x, d);
+            if (r === MatchResultFailure) {
+              return MatchResultFailure;
+            }
+            const y = r;
+            const cap = y.captures;
+            const xe = x.endIndex;
+            const z = new State(xe, cap);
+            return c(z);
+          };
+        }
+
+        if (Assertion.subtype === '(?!') {
+          const m = Evaluate_Disjunction(Assertion.Disjunction, 1);
+          return (x, c) => {
+            const d = (state) => state;
+            const r = m(x, d);
+            if (r !== MatchResultFailure) {
+              return MatchResultFailure;
+            }
+            return c(x);
+          };
+        }
+
+        if (Assertion.subtype === '(?<=') {
+          const m = Evaluate_Disjunction(Assertion.Disjunction, -1);
+          return (x, c) => {
+            const d = (state) => state;
+            const r = m(x, d);
+            if (r === MatchResultFailure) {
+              return MatchResultFailure;
+            }
+            const y = r;
+            const cap = y.captures;
+            const xe = x.endIndex;
+            const z = new State(xe, cap);
+            return c(z);
+          };
+        }
+
+        if (Assertion.subtype === '(?<!') {
+          const m = Evaluate_Disjunction(Assertion.Disjunction, -1);
+          return (x, c) => {
+            const d = (state) => state;
+            const r = m(x, d);
+            if (r !== MatchResultFailure) {
+              return MatchResultFailure;
+            }
+            return c(x);
+          };
+        }
+      }
+
+      // 21.2.2.6.1 #sec-runtime-semantics-wordcharacters-abstract-operation
+      function WordCharacters() {
+        const A = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '_'];
+        // TODO
+        // const U = [];
+        // For each character c not in set A where Canonicalize(c) is in A, add c to U.
+        // Assert: Unless Unicode and IgnoreCase are both true, U is empty.
+        // Add the characters in set U to set A.
+        return A;
+      }
+
+      // 21.2.2.6.2 #sec-runtime-semantics-iswordchar-abstract-operation
+      function IsWordChar(e) {
+        if (e === -1 || e === InputLength) {
+          return false;
+        }
+        const c = Input[e];
+        const wordChars = WordCharacters();
+        if (wordChars.includes(c)) {
+          return true;
+        }
+        return false;
+      }
+
+      // 21.2.2.7 #sec-quantifier
+      function Evaluate_Quantifier(Quantifier) {
+        if (Quantifier.greedy) {
+          const { min, max } = Evaluate_QuantifierPrefix(Quantifier.QuantifierPrefix);
+          return { min, max, greedy: true };
+        } else {
+          const { min, max } = Evaluate_QuantifierPrefix(Quantifier.QuantifierPrefix);
+          return { min, max, greedy: false };
+        }
+      }
+
+      function Evaluate_QuantifierPrefix(QuantifierPrefix) {
+        if (QuantifierPrefix.subtype === '*') {
+          return { min: 0, max: Infinity };
+        }
+
+        if (QuantifierPrefix.subtype === '+') {
+          return { min: 1, max: Infinity };
+        }
+
+        if (QuantifierPrefix.subtype === '?') {
+          return { min: 0, max: 1 };
+        }
+
+        if (QuantifierPrefix.subtype === 'fixed') {
+          const i = QuantifierPrefix.DecimalDigits;
+          return { min: i, max: i };
+        }
+
+        if (QuantifierPrefix.subtype === 'start') {
+          const i = QuantifierPrefix.DecimalDigits;
+          return { min: i, max: Infinity };
+        }
+
+        if (QuantifierPrefix.subtype === 'range') {
+          const i = QuantifierPrefix.DecimalDigits1;
+          const j = QuantifierPrefix.DecimalDigits2;
+          return { min: i, max: j };
+        }
+      }
+
       // 21.2.2.8 #sec-atom
       function Evaluate_Atom(Atom, direction) {
         if (Atom.subtype === 'PatternCharacter') {
           const ch = Atom.PatternCharacter;
-          const A = CharSet(ch);
+          const A = singleCharSet(ch);
           return CharacterSetMatcher(A, false, direction);
+        }
+
+        if (Atom.subtype === '.') {
+          let A;
+          if (DotAll === true) {
+            A = allCharSet();
+          } else {
+            A = noLineTerminatorCharSet();
+          }
+          return CharacterSetMatcher(A, false, direction);
+        }
+
+        if (Atom.subtype === '\\') {
+          return Evaluate_AtomEscape(Atom.AtomEscape, direction);
+        }
+
+        if (Atom.subtype === 'CharacterClass') {
+          const { A, invert } = Evaluate_CharacterClass(Atom.CharacterClass);
+          return CharacterSetMatcher(A, invert, direction);
+        }
+
+        if (Atom.subtype === '(') {
+          const m = Evaluate_Disjunction(Atom.Disjunction);
+          // TODO: Let parenIndex be the number of left-capturing parentheses in the entire regular expression that occur to the left of this Atom. This is the total number of Atom::(GroupSpecifierDisjunction) Parse Nodes prior to or enclosing this Atom.
+          return (x, c) => {
+            const d = (y) => {
+              const cap = [...y.captures];
+              const xe = x.endIndex;
+              const ye = y.endIndex;
+              let s;
+              if (direction === 1) {
+                Assert(xe <= ye);
+                s = Input.slice(xe, ye);
+              } else {
+                Assert(direction === -1);
+                Assert(ye <= xe);
+                s = Input.slice(ye, xe);
+              }
+              cap[parenIndex + 1] = s;
+              const z = new State(ye, cap);
+              return c(z);
+            };
+            return m(x, d);
+          };
+        }
+
+        if (Atom.subtype === '(?:') {
+          return Evaluate_Disjunction(Atom.Disjunction, direction);
         }
       }
 
-      function CharSet(char) {
-        return [char];
+      function singleCharSet(char) {
+        return {
+          has(cc) {
+            return Canonicalize(char) === cc;
+          },
+        };
       }
 
-      function charSetHas(charset, cc) {
-        return charset.some((char) => Canonicalize(char) === cc);
+      function allCharSet() {
+        return {
+          has() {
+            return true;
+          },
+        };
+      }
+
+      function noLineTerminatorCharSet() {
+        return {
+          has(cc) {
+            return !isLineTerminator(cc);
+          },
+        };
       }
 
       // 21.2.2.8.1 #sec-runtime-semantics-charactersetmatcher-abstract-operation
@@ -157,12 +411,12 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
           const ch = Input[index];
           const cc = Canonicalize(ch);
           if (invert === false) {
-            if (!charSetHas(A, cc)) {
+            if (!A.has(cc)) {
               return MatchResultFailure;
             }
           } else {
             Assert(invert === true);
-            if (charSetHas(A, cc)) {
+            if (A.has(cc)) {
               return MatchResultFailure;
             }
           }
@@ -185,10 +439,65 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
           // TODO
         }
       }
+
+      // 21.2.2.9 #sec-atomescape
+      function Evaluate_AtomEscape(AtomEscape, direction) {
+        if (AtomEscape.subtype === 'DecimalEscape') {
+          const n = AtomEscape.DecimalEscape;
+          Assert(n <= NcapturingParens);
+          return BackreferenceMatcher(n, direction);
+        }
+
+        if (AtomEscape.subtype === 'CharacterEscape') {
+          const ch = Evaluate_CharacterEscape(AtomEscape.CharacterEscape);
+          const A = singleCharSet(ch);
+          return CharacterSetMatcher(A, false, direction);
+        }
+
+        if (AtomEscape.subtype === 'CharacterClassEscape') {
+          const A = Evaluate_CharacterClassEscape(AtomEscape.CharacterClassEscape);
+          return CharacterSetMatcher(A, false, direction);
+        }
+
+        if (AtomEscape.subtype === 'k') {
+          // TODO
+          // Search the enclosing Pattern for an instance of a GroupSpecifier for a RegExpIdentifierName which has a StringValue equal to the StringValue of the RegExpIdentifierName contained in GroupName.
+          // Assert: A unique such GroupSpecifier is found.
+          // Let parenIndex be the number of left-capturing parentheses in the entire regular expression that occur to the left of the located GroupSpecifier. This is the total number of Atom::(GroupSpecifierDisjunction) Parse Nodes prior to or enclosing the located GroupSpecifier.
+          return BackreferenceMatcher(parenIndex, direction);
+        }
+      }
+
+      // 21.2.2.9.1 #sec-backreference-matcher
+      function BackreferenceMatcher(n, direction) {
+        return (x, c) => {
+          const cap = x.captures;
+          const s = cap[n];
+          if (s === Value.undefined) {
+            return c(x);
+          }
+          const e = x.endIndex;
+          const len = s.length;
+          const f = e + direction * len;
+          if (f < 0 || f > InputLength) {
+            return MatchResultFailure;
+          }
+          const g = Math.min(e, f);
+          // TODO: If there exists an integer i between 0 (inclusive) and len (exclusive) such that Canonicalize(s[i]) is not the same character value as Canonicalize(Input[g + i]), return failure.
+          const y = new State(f, cap);
+          return c(y);
+        };
+      }
+
+      // 21.2.2.10 #sec-characterescape
+      function Evaluate_CharacterEscape(CharacterEscape) {
+        const cv = CharacterEscape.CharacterValue;
+        return String.fromCharCode(cv);
+      }
+
+      
     };
   }
-
-  return Evaluate_Pattern(pattern);
 }
 
 class MatchResult {}

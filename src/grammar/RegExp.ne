@@ -168,9 +168,9 @@ QuantifierPrefix ->
     "*" {% QuantifierPrefix_nt %}
   | "+" {% QuantifierPrefix_nt %}
   | "?" {% QuantifierPrefix_nt %}
-  | "{" DecimalDigits "}"  {% ([_, [DecimalDigits]]) => ({ type: 'QuantifierPrefix', subtype: 'fixed', DecimalDigits }) %}
-  | "{" DecimalDigits ",}" {% ([_, [DecimalDigits]]) => ({ type: 'QuantifierPrefix', subtype: 'start', DecimalDigits }) %}
-  | "{" DecimalDigits "," DecimalDigits "}" {% ([_, [DecimalDigits1], c, [DecimalDigits2]]) => ({ type: 'QuantifierPrefix', subtype: 'range', DecimalDigits1, DecimalDigits2 }) %}
+  | "{" DecimalDigits "}"  {% ([_, [DecimalDigits]]) => ({ type: 'QuantifierPrefix', subtype: 'fixed', DecimalDigits: Number(DecimalDigits) }) %}
+  | "{" DecimalDigits ",}" {% ([_, [DecimalDigits]]) => ({ type: 'QuantifierPrefix', subtype: 'start', DecimalDigits: Number(DecimalDigits) }) %}
+  | "{" DecimalDigits "," DecimalDigits "}" {% ([_, [DecimalDigits1], c, [DecimalDigits2]]) => ({ type: 'QuantifierPrefix', subtype: 'range', DecimalDigits1: Number(DecimalDigits1), DecimalDigits2: Number(DecimalDigits2) }) %}
 @{%
 const QuantifierPrefix_nt = ([ch]) => ({ type: 'QuantifierPrefix', subtype: ch });
 %}
@@ -538,8 +538,8 @@ function IdentityEscape_CharacterValue([ch]) {
 #   DecimalEscape ::
 #     NonZeroDigit DecimalDigits_opt [lookahead ∉ DecimalDigit]
 DecimalEscape ->
-    NonZeroDigit {% ([NonZeroDigit], l, reject) => /^[0-9]$/.test(lookahead(l + 1, 1)) ? reject : { type: 'DecimalEscape', value: NonZeroDigit } %}
-  | NonZeroDigit DecimalDigits {% ([NonZeroDigit, [DecimalDigits, n]], l, reject) => /^[0-9]$/.test(lookahead(l + 1 + Number(n), 1)) ? reject : { type: 'DecimalEscape', value: (NonZeroDigit * 10n ** n) + DecimalDigits } %}
+    NonZeroDigit {% ([NonZeroDigit], l, reject) => /^[0-9]$/.test(lookahead(l + 1, 1)) ? reject : { type: 'DecimalEscape', value: NonZeroDigit: Number(NonZeroDigit) } %}
+  | NonZeroDigit DecimalDigits {% ([NonZeroDigit, [DecimalDigits, n]], l, reject) => /^[0-9]$/.test(lookahead(l + 1 + Number(n), 1)) ? reject : { type: 'DecimalEscape', value: Number((NonZeroDigit * 10n ** n) + DecimalDigits) } %}
 
 # #prod-CharacterClassEscape
 #   CharacterClassEscape[U] ::
