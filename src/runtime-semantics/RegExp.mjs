@@ -351,7 +351,7 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
         }
 
         if (Atom.subtype === '(') {
-          const m = Evaluate_Disjunction(Atom.Disjunction);
+          const m = Evaluate_Disjunction(Atom.Disjunction, direction);
           // TODO: Let parenIndex be the number of left-capturing parentheses in the entire regular expression that occur to the left of this Atom. This is the total number of Atom::(GroupSpecifierDisjunction) Parse Nodes prior to or enclosing this Atom.
           const parenIndex = 0;
           return (x, c) => {
@@ -576,6 +576,22 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
         return (cc) => cc >= A && cc <= B;
       }
 
+      // 21.2.2.19 #sec-classescape
+      function Evaluate_ClassEscape(ClassEscape) {
+        if (ClassEscape.subtype === 'b') {
+          return singleCharSet('b');
+        }
+        if (ClassEscape.subtype === '-') {
+          return singleCharSet('-');
+        }
+        if (ClassEscape.subtype === 'CharacterClassEscape') {
+          return Evaluate_CharacterClass(ClassEscape.CharacterClassEscape);
+        }
+        if (ClassEscape.subtype === 'CharacterEscape') {
+          return Evaluate_CharacterEscape(ClassEscape.CharacterEscape);
+        }
+      }
+
       function singleCharSet(char) {
         return (cc) => Canonicalize(char) === cc;
       }
@@ -625,6 +641,8 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
         if (ClassAtom.type === 'ClassAtomNoDash') {
           if (ClassAtom.subtype === 'SourceCharacter') {
             return ClassAtom.SourceCharacter;
+          } else {
+            return Evaluate_ClassEscape(ClassAtom.ClassEscape);
           }
         }
         throw new Error('unreachable');

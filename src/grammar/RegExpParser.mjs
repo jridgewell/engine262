@@ -133,6 +133,12 @@ visitor.Term = (node, c) => {
   }
 };
 
+visitor.Assertion = (node, c) => {
+  if (node.Disjunction) {
+    c(node.Disjunction);
+  }
+};
+
 visitor.Quantifier = (node, c) => {
   c(node.QuantifierPrefix);
 };

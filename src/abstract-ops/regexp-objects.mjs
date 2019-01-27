@@ -66,10 +66,7 @@ export function RegExpInitialize(obj, pattern, flags) {
       parsed = parse(patternCharacters, { U: true, N: true });
     }
   } catch (e) {
-    if (e instanceof SyntaxError) {
-      return surroundingAgent.Throw('SyntaxError', e.message);
-    }
-    throw e;
+    return surroundingAgent.Throw('SyntaxError', e.message);
   }
 
   obj.OriginalSource = P;

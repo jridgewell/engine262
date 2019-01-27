@@ -748,7 +748,7 @@ ClassAtomNoDash_U ->
 @{%
 const ClassAtomNoDash = { test: /./.test.bind(/[^\\\]\-]/u) };
 const ClassAtomNoDash_SourceCharacter = ([SourceCharacter]) => ({ type: 'ClassAtomNoDash', subtype: 'SourceCharacter', SourceCharacter });
-const ClassAtomNoDash_ClassEscape = ([ClassEscape]) => ({ type: 'ClassAtomNoDash', subtype: 'ClassEscape', ClassEscape });
+const ClassAtomNoDash_ClassEscape = ([e, ClassEscape]) => ({ type: 'ClassAtomNoDash', subtype: e, ClassEscape });
 %}
 
 # #prod-ClassEscape
