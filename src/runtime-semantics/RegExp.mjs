@@ -4,7 +4,10 @@ import {
 import {
   Value,
 } from '../value.mjs';
-import { isLineTerminator } from '../grammar/util.mjs';
+import {
+  isLineTerminator,
+  isStrWhiteSpaceChar,
+} from '../grammar/util.mjs';
 
 // 21.2.2.1 #sec-notation
 export function getMatcher(parsedRegex, patternCharacters, flags) {
@@ -93,7 +96,9 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
           const { max, min, greedy } = Evaluate_Quantifier(Term.Quantifier);
           Assert(!Number.isFinite(max) || max >= min);
           // TODO: Let parenIndex be the number of left-capturing parentheses in the entire regular expression that occur to the left of this Term. This is the total number of Atom :: `(` GroupSpecifierDisjunction `)` Parse Nodes prior to or enclosing this Term.
+          const parenIndex = 0;
           // TODO: Let parenCount be the number of left-capturing parentheses in Atom. This is the total number of Atom :: `(` GroupSpecifierDisjunction `)` Parse Nodes enclosed by Atom.
+          const parenCount = 0;
           return (x, c) => RepeatMatcher(m, min, max, greedy, x, c, parenIndex, parenCount);
         }
       }
@@ -261,7 +266,7 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
         // For each character c not in set A where Canonicalize(c) is in A, add c to U.
         // Assert: Unless Unicode and IgnoreCase are both true, U is empty.
         // Add the characters in set U to set A.
-        return A;
+        return (cc) => A.includes(cc);
       }
 
       // 21.2.2.6.2 #sec-runtime-semantics-iswordchar-abstract-operation
@@ -348,6 +353,7 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
         if (Atom.subtype === '(') {
           const m = Evaluate_Disjunction(Atom.Disjunction);
           // TODO: Let parenIndex be the number of left-capturing parentheses in the entire regular expression that occur to the left of this Atom. This is the total number of Atom::(GroupSpecifierDisjunction) Parse Nodes prior to or enclosing this Atom.
+          const parenIndex = 0;
           return (x, c) => {
             const d = (y) => {
               const cap = [...y.captures];
@@ -375,30 +381,6 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
         }
       }
 
-      function singleCharSet(char) {
-        return {
-          has(cc) {
-            return Canonicalize(char) === cc;
-          },
-        };
-      }
-
-      function allCharSet() {
-        return {
-          has() {
-            return true;
-          },
-        };
-      }
-
-      function noLineTerminatorCharSet() {
-        return {
-          has(cc) {
-            return !isLineTerminator(cc);
-          },
-        };
-      }
-
       // 21.2.2.8.1 #sec-runtime-semantics-charactersetmatcher-abstract-operation
       function CharacterSetMatcher(A, invert, direction) {
         return (x, c) => {
@@ -411,12 +393,12 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
           const ch = Input[index];
           const cc = Canonicalize(ch);
           if (invert === false) {
-            if (!A.has(cc)) {
+            if (!A(cc)) {
               return MatchResultFailure;
             }
           } else {
             Assert(invert === true);
-            if (A.has(cc)) {
+            if (A(cc)) {
               return MatchResultFailure;
             }
           }
@@ -440,10 +422,22 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
         }
       }
 
+      // 21.2.2.8.3 #sec-runtime-semantics-unicodematchproperty-p
+      // function UnicodeMatchProperty(/* p */) {
+      //   // TODO
+      //   return [];
+      // }
+
+      // 21.2.2.8.4 #sec-runtime-semantics-unicodematchpropertyvalue-p-v
+      // function UnicodeMatchPropertyValue(/* p, v */) {
+      //   // TODO
+      //   return [];
+      // }
+
       // 21.2.2.9 #sec-atomescape
       function Evaluate_AtomEscape(AtomEscape, direction) {
         if (AtomEscape.subtype === 'DecimalEscape') {
-          const n = AtomEscape.DecimalEscape;
+          const n = Evaluate_DecimalEscape(AtomEscape.DecimalEscape);
           Assert(n <= NcapturingParens);
           return BackreferenceMatcher(n, direction);
         }
@@ -464,6 +458,7 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
           // Search the enclosing Pattern for an instance of a GroupSpecifier for a RegExpIdentifierName which has a StringValue equal to the StringValue of the RegExpIdentifierName contained in GroupName.
           // Assert: A unique such GroupSpecifier is found.
           // Let parenIndex be the number of left-capturing parentheses in the entire regular expression that occur to the left of the located GroupSpecifier. This is the total number of Atom::(GroupSpecifierDisjunction) Parse Nodes prior to or enclosing the located GroupSpecifier.
+          const parenIndex = 0;
           return BackreferenceMatcher(parenIndex, direction);
         }
       }
@@ -482,7 +477,7 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
           if (f < 0 || f > InputLength) {
             return MatchResultFailure;
           }
-          const g = Math.min(e, f);
+          // const g = Math.min(e, f);
           // TODO: If there exists an integer i between 0 (inclusive) and len (exclusive) such that Canonicalize(s[i]) is not the same character value as Canonicalize(Input[g + i]), return failure.
           const y = new State(f, cap);
           return c(y);
@@ -495,7 +490,109 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
         return String.fromCharCode(cv);
       }
 
-      
+      // 21.2.2.11 #sec-decimalescape
+      function Evaluate_DecimalEscape(DecimalEscape) {
+        return DecimalEscape.CapturingGroupNumber;
+      }
+
+      // 21.2.2.12 #sec-characterclassescape
+      function Evaluate_CharacterClassEscape(CharacterClassEscape) {
+        if (CharacterClassEscape.subtype === 'd') {
+          return numberCharSet();
+        }
+
+        if (CharacterClassEscape.subtype === 'D') {
+          return invertCharSet(numberCharSet());
+        }
+
+        if (CharacterClassEscape.subtype === 's') {
+          return whitespaceCharSet();
+        }
+
+        if (CharacterClassEscape.subtype === 'S') {
+          return invertCharSet(whitespaceCharSet());
+        }
+
+        if (CharacterClassEscape.subtype === 'w') {
+          return WordCharacters();
+        }
+
+        if (CharacterClassEscape.subtype === 'W') {
+          return invertCharSet(WordCharacters());
+        }
+
+        if (CharacterClassEscape.subtype === 'p{') {
+          return Evaluate_UnicodePropertyValueExpression(CharacterClassEscape.UnicodePropertyValueExpression);
+        }
+
+        if (CharacterClassEscape.subtype === 'P{') {
+          return invertCharSet(Evaluate_UnicodePropertyValueExpression(CharacterClassEscape.UnicodePropertyValueExpression));
+        }
+      }
+
+      function Evaluate_UnicodePropertyValueExpression(/* UnicodePropertyValueExpression */) {
+        // TODO
+        // if (UnicodePropertyValueExpression.subtype === 'UnicodePropertyName_UnicodePropertyValueValue') {
+        // const ps = UnicodePropertyValueExpression.UnicodePropertyName.SourceText;
+        // const p = UnicodeMatchProperty(ps);
+        // const vs = UnicodePropertyValueExpression.UnicodePropertyValue.SourceText;
+        // const v = UnicodeMatchPropertyValue(p, vs);
+        //   return null;
+        // }
+      }
+
+      // 21.2.2.13 #sec-characterclass
+      function Evaluate_CharacterClass(CharacterClass) {
+        if (!CharacterClass.inverted) {
+          const A = Evaluate_ClassRanges(CharacterClass.ClassRanges);
+          return { A, inverted: false };
+        } else {
+          const A = Evaluate_ClassRanges(CharacterClass.ClassRanges);
+          return { A, inverted: true };
+        }
+      }
+
+      // 21.2.2.14 #sec-classranges
+      function Evaluate_ClassRanges(ClassRanges) {
+        if (ClassRanges === null) {
+          return emptyCharSet();
+        } else {
+          return Evaluate_NonemptyClassRanges(ClassRanges.NonemptyClassRanges);
+        }
+      }
+
+      // 21.2.2.15 #sec-nonemptyclassranges
+      function Evaluate_NonemptyClassRanges(NonemptyClassRanges) {
+        
+      }
+
+      function singleCharSet(char) {
+        return (cc) => Canonicalize(char) === cc;
+      }
+
+      function allCharSet() {
+        return () => true;
+      }
+
+      function noLineTerminatorCharSet() {
+        return (cc) => !isLineTerminator(cc);
+      }
+
+      function numberCharSet() {
+        return (cc) => /0-9/.test(cc);
+      }
+
+      function whitespaceCharSet() {
+        return (cc) => isStrWhiteSpaceChar(cc);
+      }
+
+      function emptyCharSet() {
+        return () => false;
+      }
+
+      function invertCharSet(charSet) {
+        return (cc) => !charSet(cc);
+      }
     };
   }
 }

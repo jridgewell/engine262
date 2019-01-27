@@ -157,7 +157,7 @@ function CharacterClassEscape([c]) {
   return { type: 'CharacterClassEscape', subtype: c };
 }
 function CharacterClassEscape_UnicodePropertyValueExpression([p, UnicodePropertyValueExpression]) {
-  return { type: 'CharacterClassEscape', subtype: 'UnicodePropertyValueExpression', UnicodePropertyValueExpression };
+  return { type: 'CharacterClassEscape', subtype: p, UnicodePropertyValueExpression };
 }
 
 
@@ -187,9 +187,21 @@ function CharacterClass_Evaluate(inverted, [_, ClassRanges], l, reject) {
 }
 
 
-function ClassRanges_NonemptyClassRanges([NonemptyClassRanges]) {
-  return { type: 'ClassRanges', NonemptyClassRanges };
-}
+const ClassRanges_NonemptyClassRanges = ([NonemptyClassRanges]) => ({ type: 'ClassRanges', NonemptyClassRanges });
+
+
+const NonemptyClassRanges_ClassAtom = ([ClassAtom]) => ({ type: 'NonemptyClassRanges', subtype: 'ClassAtom', ClassAtom });
+const NonemptyClassRanges_NoDash = ([ClassAtom, NonemptyClassRangesNoDash]) => ({ type: 'NonemptyClassRanges', subtype: 'NoDash', ClassAtom, NonemptyClassRangesNoDash });
+const NonemptyClassRanges_Dash = ([ClassAtom1, d, ClassAtom2, ClassRanges]) => ({ type: 'NonemptyClassRanges', subtype: 'Dash', ClassAtom1, ClassAtom2, ClassRanges });
+
+
+const NonemptyClassRangesNoDash_ClassAtom = ([ClassAtom]) => ({ type: 'NonemptyClassRangesNoDash', subtype: 'ClassAtom', ClassAtom });
+const NonemptyClassRangesNoDash_NoDash = ([ClassAtomNoDash, NonemptyClassRangesNoDash]) => ({ type: 'NonemptyClassRangesNoDash', subtype: 'NoDash', ClassAtomNoDash, NonemptyClassRangesNoDash });
+const NonemptyClassRangesNoDash_NoDashDash = ([ClassAtomNoDash, d, ClassAtom, ClassRanges]) => ({ type: 'NonemptyClassRangesNoDash', subtype: 'NoDashDash', ClassAtom, ClassRanges });
+
+
+const ClassAtom_Dash = ([d]) => ({ type: 'ClassAtom', subtype: '-' });
+const ClassAtom_NoDash = ([ClassAtomNoDash]) => ({ type: 'ClassAtom', subtype: 'ClassAtomNoDash', ClassAtomNoDash });
 
 
 const ClassAtomNoDash = { test: /./.test.bind(/[^\\\]\-]/u) };
@@ -451,15 +463,15 @@ let ParserRules = [
     {"name": "IdentityEscape", "symbols": [IdentityEscape], "postprocess": IdentityEscape_CharacterValue},
     {"name": "IdentityEscape_U", "symbols": ["SyntaxCharacter"], "postprocess": IdentityEscape_CharacterValue},
     {"name": "IdentityEscape_U", "symbols": [{"literal":"/"}], "postprocess": IdentityEscape_CharacterValue},
-    {"name": "DecimalEscape", "symbols": ["NonZeroDigit"], "postprocess": ([NonZeroDigit], l, reject) => /^[0-9]$/.test(lookahead(l + 1, 1)) ? reject : { type: 'DecimalEscape', value: NonZeroDigit: Number(NonZeroDigit) }},
-    {"name": "DecimalEscape", "symbols": ["NonZeroDigit", "DecimalDigits"], "postprocess": ([NonZeroDigit, [DecimalDigits, n]], l, reject) => /^[0-9]$/.test(lookahead(l + 1 + Number(n), 1)) ? reject : { type: 'DecimalEscape', value: Number((NonZeroDigit * 10n ** n) + DecimalDigits) }},
+    {"name": "DecimalEscape", "symbols": ["NonZeroDigit"], "postprocess": ([NonZeroDigit], l, reject) => /^[0-9]$/.test(lookahead(l + 1, 1)) ? reject : { type: 'DecimalEscape', CapturingGroupNumber: Number(NonZeroDigit) }},
+    {"name": "DecimalEscape", "symbols": ["NonZeroDigit", "DecimalDigits"], "postprocess": ([NonZeroDigit, [DecimalDigits, n]], l, reject) => /^[0-9]$/.test(lookahead(l + 1 + Number(n), 1)) ? reject : { type: 'DecimalEscape', CapturingGroupNumber: Number((NonZeroDigit * 10n ** n) + DecimalDigits) }},
     {"name": "CharacterClassEscape", "symbols": [/[dDsSwW]/], "postprocess": CharacterClassEscape},
     {"name": "CharacterClassEscape_U", "symbols": [/[dDsSwW]/], "postprocess": CharacterClassEscape},
     {"name": "CharacterClassEscape_U$subexpression$1", "symbols": [/[pP]/, {"literal":"{"}], "postprocess": function(d) {return d.join(""); }},
     {"name": "CharacterClassEscape_U", "symbols": ["CharacterClassEscape_U$subexpression$1", "UnicodePropertyValueExpression", {"literal":"}"}], "postprocess": CharacterClassEscape_UnicodePropertyValueExpression},
     {"name": "UnicodePropertyValueExpression", "symbols": ["UnicodePropertyName", {"literal":"="}, "UnicodePropertyValue"], "postprocess": UnicodePropertyValueExpression},
     {"name": "UnicodePropertyValueExpression", "symbols": ["LoneUnicodePropertyNameOrValue"], "postprocess": UnicodePropertyValueExpression_LoneUnicodePropertyNameOrValue},
-    {"name": "UnicodePropertyName", "symbols": ["UnicodePropertyNameCharacters"], "postprocess": id},
+    {"name": "UnicodePropertyName", "symbols": ["UnicodePropertyNameCharacters"], "postprocess": ([chars]) => ({ type: 'UnicodePropertyName', SourceText: chars })},
     {"name": "UnicodePropertyNameCharacters", "symbols": ["UnicodePropertyNameCharacter"], "postprocess": id},
     {"name": "UnicodePropertyNameCharacters", "symbols": ["UnicodePropertyNameCharacter", "UnicodePropertyNameCharacters"], "postprocess": UnicodePropertyNameCharacters},
     {"name": "UnicodePropertyValue", "symbols": ["UnicodePropertyValueCharacters"], "postprocess": id},
@@ -480,22 +492,22 @@ let ParserRules = [
     {"name": "ClassRanges", "symbols": ["NonemptyClassRanges"], "postprocess": ClassRanges_NonemptyClassRanges},
     {"name": "ClassRanges_U", "symbols": [], "postprocess": c(null)},
     {"name": "ClassRanges_U", "symbols": ["NonemptyClassRanges_U"], "postprocess": ClassRanges_NonemptyClassRanges},
-    {"name": "NonemptyClassRanges", "symbols": ["ClassAtom"]},
-    {"name": "NonemptyClassRanges", "symbols": ["ClassAtom", "NonemptyClassRangesNoDash"]},
-    {"name": "NonemptyClassRanges", "symbols": ["ClassAtom", {"literal":"-"}, "ClassAtom", "ClassRanges"]},
-    {"name": "NonemptyClassRanges_U", "symbols": ["ClassAtom_U"]},
-    {"name": "NonemptyClassRanges_U", "symbols": ["ClassAtom_U", "NonemptyClassRangesNoDash_U"]},
-    {"name": "NonemptyClassRanges_U", "symbols": ["ClassAtom_U", {"literal":"-"}, "ClassAtom_U", "ClassRanges_U"]},
-    {"name": "NonemptyClassRangesNoDash", "symbols": ["ClassAtom"]},
-    {"name": "NonemptyClassRangesNoDash", "symbols": ["ClassAtomNoDash", "NonemptyClassRangesNoDash"]},
-    {"name": "NonemptyClassRangesNoDash", "symbols": ["ClassAtomNoDash", {"literal":"-"}, "ClassAtom", "ClassRanges"]},
-    {"name": "NonemptyClassRangesNoDash_U", "symbols": ["ClassAtom_U"]},
-    {"name": "NonemptyClassRangesNoDash_U", "symbols": ["ClassAtomNoDash_U", "NonemptyClassRangesNoDash_U"]},
-    {"name": "NonemptyClassRangesNoDash_U", "symbols": ["ClassAtomNoDash_U", {"literal":"-"}, "ClassAtom_U", "ClassRanges_U"]},
-    {"name": "ClassAtom", "symbols": [{"literal":"-"}]},
-    {"name": "ClassAtom", "symbols": ["ClassAtomNoDash"]},
-    {"name": "ClassAtom_U", "symbols": [{"literal":"-"}]},
-    {"name": "ClassAtom_U", "symbols": ["ClassAtomNoDash_U"]},
+    {"name": "NonemptyClassRanges", "symbols": ["ClassAtom"], "postprocess": NonemptyClassRanges_ClassAtom},
+    {"name": "NonemptyClassRanges", "symbols": ["ClassAtom", "NonemptyClassRangesNoDash"], "postprocess": NonemptyClassRanges_NoDash},
+    {"name": "NonemptyClassRanges", "symbols": ["ClassAtom", {"literal":"-"}, "ClassAtom", "ClassRanges"], "postprocess": NonemptyClassRanges_Dash},
+    {"name": "NonemptyClassRanges_U", "symbols": ["ClassAtom_U"], "postprocess": NonemptyClassRanges_ClassAtom},
+    {"name": "NonemptyClassRanges_U", "symbols": ["ClassAtom_U", "NonemptyClassRangesNoDash_U"], "postprocess": NonemptyClassRanges_NoDash},
+    {"name": "NonemptyClassRanges_U", "symbols": ["ClassAtom_U", {"literal":"-"}, "ClassAtom_U", "ClassRanges_U"], "postprocess": NonemptyClassRanges_Dash},
+    {"name": "NonemptyClassRangesNoDash", "symbols": ["ClassAtom"], "postprocess": NonemptyClassRangesNoDash_ClassAtom},
+    {"name": "NonemptyClassRangesNoDash", "symbols": ["ClassAtomNoDash", "NonemptyClassRangesNoDash"], "postprocess": NonemptyClassRangesNoDash_NoDash},
+    {"name": "NonemptyClassRangesNoDash", "symbols": ["ClassAtomNoDash", {"literal":"-"}, "ClassAtom", "ClassRanges"], "postprocess": NonemptyClassRangesNoDash_NoDashDash},
+    {"name": "NonemptyClassRangesNoDash_U", "symbols": ["ClassAtom_U"], "postprocess": NonemptyClassRangesNoDash_ClassAtom},
+    {"name": "NonemptyClassRangesNoDash_U", "symbols": ["ClassAtomNoDash_U", "NonemptyClassRangesNoDash_U"], "postprocess": NonemptyClassRangesNoDash_NoDash},
+    {"name": "NonemptyClassRangesNoDash_U", "symbols": ["ClassAtomNoDash_U", {"literal":"-"}, "ClassAtom_U", "ClassRanges_U"], "postprocess": NonemptyClassRangesNoDash_NoDashDash},
+    {"name": "ClassAtom", "symbols": [{"literal":"-"}], "postprocess": ClassAtom_Dash},
+    {"name": "ClassAtom", "symbols": ["ClassAtomNoDash"], "postprocess": ClassAtom_NoDash},
+    {"name": "ClassAtom_U", "symbols": [{"literal":"-"}], "postprocess": ClassAtom_Dash},
+    {"name": "ClassAtom_U", "symbols": ["ClassAtomNoDash_U"], "postprocess": ClassAtom_NoDash},
     {"name": "ClassAtomNoDash", "symbols": [ClassAtomNoDash]},
     {"name": "ClassAtomNoDash", "symbols": [{"literal":"\\"}, "ClassEscape"]},
     {"name": "ClassAtomNoDash_U", "symbols": [ClassAtomNoDash]},
