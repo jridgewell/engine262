@@ -543,27 +543,37 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
 
       // 21.2.2.13 #sec-characterclass
       function Evaluate_CharacterClass(CharacterClass) {
-        if (!CharacterClass.inverted) {
+        if (!CharacterClass.invert) {
           const A = Evaluate_ClassRanges(CharacterClass.ClassRanges);
-          return { A, inverted: false };
+          return { A, invert: false };
         } else {
           const A = Evaluate_ClassRanges(CharacterClass.ClassRanges);
-          return { A, inverted: true };
+          return { A, invert: true };
         }
       }
 
       // 21.2.2.14 #sec-classranges
       function Evaluate_ClassRanges(ClassRanges) {
-        if (ClassRanges === null) {
+        const ranges = ClassRanges.ClassRanges;
+        if (ranges.length === 0) {
           return emptyCharSet();
-        } else {
-          return Evaluate_NonemptyClassRanges(ClassRanges.NonemptyClassRanges);
         }
+        const charSets = ranges.map((range) => {
+          if (Array.isArray(range)) {
+            const classAtom1 = getClassAtom(range[0]);
+            const classAtom2 = getClassAtom(range[1]);
+            return CharacterRange(classAtom1, classAtom2);
+          } else {
+            return classRangeAtomCharSet(range);
+          }
+        });
+
+        return combinedCharSet(charSets);
       }
 
-      // 21.2.2.15 #sec-nonemptyclassranges
-      function Evaluate_NonemptyClassRanges(NonemptyClassRanges) {
-        
+      // 21.2.2.15.1 #sec-runtime-semantics-characterrange-abstract-operation
+      function CharacterRange(A, B) {
+        return (cc) => cc >= A && cc <= B;
       }
 
       function singleCharSet(char) {
@@ -592,6 +602,32 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
 
       function invertCharSet(charSet) {
         return (cc) => !charSet(cc);
+      }
+
+      function combinedCharSet(charSets) {
+        return (cc) => charSets.some((charSet) => charSet(cc));
+      }
+
+      function classRangeAtomCharSet(classRange) {
+        const classAtom = getClassAtom(classRange);
+        return (cc) => cc === classAtom;
+      }
+
+      function getClassAtom(ClassAtom) {
+        if (ClassAtom.type === 'ClassAtom') {
+          if (ClassAtom.subtype === '-') {
+            return '-';
+          }
+          if (ClassAtom.subtype === 'ClassAtomNoDash') {
+            return getClassAtom(ClassAtom.ClassAtomNoDash);
+          }
+        }
+        if (ClassAtom.type === 'ClassAtomNoDash') {
+          if (ClassAtom.subtype === 'SourceCharacter') {
+            return ClassAtom.SourceCharacter;
+          }
+        }
+        throw new Error('unreachable');
       }
     };
   }

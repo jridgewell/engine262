@@ -179,25 +179,26 @@ function UnicodePropertyValueCharacters([char, chars]) {
 }
 
 
-function CharacterClass_Evaluate(inverted, [_, ClassRanges], l, reject) {
-  if (!inverted && lookahead(l + 1, 1) === '^') {
+function CharacterClass_Evaluate(invert, [_, ClassRanges], l, reject) {
+  if (!invert && lookahead(l + 1, 1) === '^') {
     return reject;
   }
-  return { type: 'CharacterClass', inverted, ClassRanges };
+  return { type: 'CharacterClass', invert, ClassRanges };
 }
 
 
-const ClassRanges_NonemptyClassRanges = ([NonemptyClassRanges]) => ({ type: 'ClassRanges', NonemptyClassRanges });
+const ClassRanges_empty = () => ({ type: 'ClassRanges', ClassRanges: [] });
+const ClassRanges_NonemptyClassRanges = ([NonemptyClassRanges]) => ({ type: 'ClassRanges', ClassRanges: NonemptyClassRanges.ClassRanges });
 
 
-const NonemptyClassRanges_ClassAtom = ([ClassAtom]) => ({ type: 'NonemptyClassRanges', subtype: 'ClassAtom', ClassAtom });
-const NonemptyClassRanges_NoDash = ([ClassAtom, NonemptyClassRangesNoDash]) => ({ type: 'NonemptyClassRanges', subtype: 'NoDash', ClassAtom, NonemptyClassRangesNoDash });
-const NonemptyClassRanges_Dash = ([ClassAtom1, d, ClassAtom2, ClassRanges]) => ({ type: 'NonemptyClassRanges', subtype: 'Dash', ClassAtom1, ClassAtom2, ClassRanges });
+const NonemptyClassRanges_ClassAtom = ([ClassAtom]) => ({ type: 'NonemptyClassRanges', subtype: 'ClassAtom', ClassRanges: [ClassAtom] });
+const NonemptyClassRanges_NoDash = ([ClassAtom, NonemptyClassRangesNoDash]) => ({ type: 'NonemptyClassRanges', subtype: 'NoDash', ClassRanges: [ClassAtom, ...NonemptyClassRangesNoDash.ClassRanges] });
+const NonemptyClassRanges_Dash = ([ClassAtom1, d, ClassAtom2, ClassRanges]) => ({ type: 'NonemptyClassRanges', subtype: 'Dash', ClassRanges: [[ClassAtom1, ClassAtom2], ...ClassRanges.ClassRanges] });
 
 
-const NonemptyClassRangesNoDash_ClassAtom = ([ClassAtom]) => ({ type: 'NonemptyClassRangesNoDash', subtype: 'ClassAtom', ClassAtom });
-const NonemptyClassRangesNoDash_NoDash = ([ClassAtomNoDash, NonemptyClassRangesNoDash]) => ({ type: 'NonemptyClassRangesNoDash', subtype: 'NoDash', ClassAtomNoDash, NonemptyClassRangesNoDash });
-const NonemptyClassRangesNoDash_NoDashDash = ([ClassAtomNoDash, d, ClassAtom, ClassRanges]) => ({ type: 'NonemptyClassRangesNoDash', subtype: 'NoDashDash', ClassAtom, ClassRanges });
+const NonemptyClassRangesNoDash_ClassAtom = ([ClassAtom]) => ({ type: 'NonemptyClassRangesNoDash', subtype: 'ClassAtom', ClassRanges: [ClassAtom] });
+const NonemptyClassRangesNoDash_NoDash = ([ClassAtomNoDash, NonemptyClassRangesNoDash]) => ({ type: 'NonemptyClassRangesNoDash', subtype: 'NoDash', ClassRanges: [ClassAtomNoDash, ...NonemptyClassRangesNoDash.ClassRanges] });
+const NonemptyClassRangesNoDash_NoDashDash = ([ClassAtomNoDash, d, ClassAtom, ClassRanges]) => ({ type: 'NonemptyClassRangesNoDash', subtype: 'NoDashDash', ClassRanges: [[ClassAtomNoDash, ClassAtom], ClassRanges.ClassRanges] });
 
 
 const ClassAtom_Dash = ([d]) => ({ type: 'ClassAtom', subtype: '-' });
@@ -205,6 +206,8 @@ const ClassAtom_NoDash = ([ClassAtomNoDash]) => ({ type: 'ClassAtom', subtype: '
 
 
 const ClassAtomNoDash = { test: /./.test.bind(/[^\\\]\-]/u) };
+const ClassAtomNoDash_SourceCharacter = ([SourceCharacter]) => ({ type: 'ClassAtomNoDash', subtype: 'SourceCharacter', SourceCharacter });
+const ClassAtomNoDash_ClassEscape = ([ClassEscape]) => ({ type: 'ClassAtomNoDash', subtype: 'ClassEscape', ClassEscape });
 
 
 function ClassEscape_B() {
@@ -488,9 +491,9 @@ let ParserRules = [
     {"name": "CharacterClass_U", "symbols": [{"literal":"["}, "ClassRanges_U", {"literal":"]"}], "postprocess": CharacterClass_Evaluate.bind(undefined, false)},
     {"name": "CharacterClass_U$string$1", "symbols": [{"literal":"["}, {"literal":"^"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "CharacterClass_U", "symbols": ["CharacterClass_U$string$1", "ClassRanges_U", {"literal":"]"}], "postprocess": CharacterClass_Evaluate.bind(undefined, true)},
-    {"name": "ClassRanges", "symbols": [], "postprocess": c(null)},
+    {"name": "ClassRanges", "symbols": [], "postprocess": ClassRanges_empty},
     {"name": "ClassRanges", "symbols": ["NonemptyClassRanges"], "postprocess": ClassRanges_NonemptyClassRanges},
-    {"name": "ClassRanges_U", "symbols": [], "postprocess": c(null)},
+    {"name": "ClassRanges_U", "symbols": [], "postprocess": ClassRanges_empty},
     {"name": "ClassRanges_U", "symbols": ["NonemptyClassRanges_U"], "postprocess": ClassRanges_NonemptyClassRanges},
     {"name": "NonemptyClassRanges", "symbols": ["ClassAtom"], "postprocess": NonemptyClassRanges_ClassAtom},
     {"name": "NonemptyClassRanges", "symbols": ["ClassAtom", "NonemptyClassRangesNoDash"], "postprocess": NonemptyClassRanges_NoDash},
@@ -508,10 +511,10 @@ let ParserRules = [
     {"name": "ClassAtom", "symbols": ["ClassAtomNoDash"], "postprocess": ClassAtom_NoDash},
     {"name": "ClassAtom_U", "symbols": [{"literal":"-"}], "postprocess": ClassAtom_Dash},
     {"name": "ClassAtom_U", "symbols": ["ClassAtomNoDash_U"], "postprocess": ClassAtom_NoDash},
-    {"name": "ClassAtomNoDash", "symbols": [ClassAtomNoDash]},
-    {"name": "ClassAtomNoDash", "symbols": [{"literal":"\\"}, "ClassEscape"]},
-    {"name": "ClassAtomNoDash_U", "symbols": [ClassAtomNoDash]},
-    {"name": "ClassAtomNoDash_U", "symbols": [{"literal":"\\"}, "ClassEscape_U"]},
+    {"name": "ClassAtomNoDash", "symbols": [ClassAtomNoDash], "postprocess": ClassAtomNoDash_SourceCharacter},
+    {"name": "ClassAtomNoDash", "symbols": [{"literal":"\\"}, "ClassEscape"], "postprocess": ClassAtomNoDash_ClassEscape},
+    {"name": "ClassAtomNoDash_U", "symbols": [ClassAtomNoDash], "postprocess": ClassAtomNoDash_SourceCharacter},
+    {"name": "ClassAtomNoDash_U", "symbols": [{"literal":"\\"}, "ClassEscape_U"], "postprocess": ClassAtomNoDash_ClassEscape},
     {"name": "ClassEscape", "symbols": [{"literal":"b"}], "postprocess": ClassEscape_B},
     {"name": "ClassEscape", "symbols": ["CharacterClassEscape"], "postprocess": ClassEscape_CharacterClassEscape},
     {"name": "ClassEscape", "symbols": ["CharacterEscape"], "postprocess": ClassEscape_CharacterEscape},

@@ -659,11 +659,11 @@ CharacterClass_U ->
     "[" ClassRanges_U "]"  {% CharacterClass_Evaluate.bind(undefined, false) %}
   | "[^" ClassRanges_U "]" {% CharacterClass_Evaluate.bind(undefined, true) %}
 @{%
-function CharacterClass_Evaluate(inverted, [_, ClassRanges], l, reject) {
-  if (!inverted && lookahead(l + 1, 1) === '^') {
+function CharacterClass_Evaluate(invert, [_, ClassRanges], l, reject) {
+  if (!invert && lookahead(l + 1, 1) === '^') {
     return reject;
   }
-  return { type: 'CharacterClass', inverted, ClassRanges };
+  return { type: 'CharacterClass', invert, ClassRanges };
 }
 %}
 
@@ -672,13 +672,14 @@ function CharacterClass_Evaluate(inverted, [_, ClassRanges], l, reject) {
 #     [empty]
 #     NonemptyClassRanges[?U]
 ClassRanges ->
-    null {% c(null) %}
+    null {% ClassRanges_empty %}
   | NonemptyClassRanges {% ClassRanges_NonemptyClassRanges %}
 ClassRanges_U ->
-    null {% c(null) %}
+    null {% ClassRanges_empty %}
   | NonemptyClassRanges_U {% ClassRanges_NonemptyClassRanges %}
 @{%
-const ClassRanges_NonemptyClassRanges = ([NonemptyClassRanges]) => ({ type: 'ClassRanges', NonemptyClassRanges });
+const ClassRanges_empty = () => ({ type: 'ClassRanges', ClassRanges: [] });
+const ClassRanges_NonemptyClassRanges = ([NonemptyClassRanges]) => ({ type: 'ClassRanges', ClassRanges: NonemptyClassRanges.ClassRanges });
 %}
 
 # #prod-NonemptyClassRanges
@@ -695,9 +696,9 @@ NonemptyClassRanges ->
   | ClassAtom_U NonemptyClassRangesNoDash_U   {% NonemptyClassRanges_NoDash %}
   | ClassAtom_U "-" ClassAtom_U ClassRanges_U {% NonemptyClassRanges_Dash %}
 @{%
-const NonemptyClassRanges_ClassAtom = ([ClassAtom]) => ({ type: 'NonemptyClassRanges', subtype: 'ClassAtom', ClassAtom });
-const NonemptyClassRanges_NoDash = ([ClassAtom, NonemptyClassRangesNoDash]) => ({ type: 'NonemptyClassRanges', subtype: 'NoDash', ClassAtom, NonemptyClassRangesNoDash });
-const NonemptyClassRanges_Dash = ([ClassAtom1, d, ClassAtom2, ClassRanges]) => ({ type: 'NonemptyClassRanges', subtype: 'Dash', ClassAtom1, ClassAtom2, ClassRanges });
+const NonemptyClassRanges_ClassAtom = ([ClassAtom]) => ({ type: 'NonemptyClassRanges', subtype: 'ClassAtom', ClassRanges: [ClassAtom] });
+const NonemptyClassRanges_NoDash = ([ClassAtom, NonemptyClassRangesNoDash]) => ({ type: 'NonemptyClassRanges', subtype: 'NoDash', ClassRanges: [ClassAtom, ...NonemptyClassRangesNoDash.ClassRanges] });
+const NonemptyClassRanges_Dash = ([ClassAtom1, d, ClassAtom2, ClassRanges]) => ({ type: 'NonemptyClassRanges', subtype: 'Dash', ClassRanges: [[ClassAtom1, ClassAtom2], ...ClassRanges.ClassRanges] });
 %}
 
 # #prod-NonemptyClassRangesNoDash
@@ -714,9 +715,9 @@ NonemptyClassRangesNoDash_U ->
   | ClassAtomNoDash_U NonemptyClassRangesNoDash_U   {% NonemptyClassRangesNoDash_NoDash %}
   | ClassAtomNoDash_U "-" ClassAtom_U ClassRanges_U {% NonemptyClassRangesNoDash_NoDashDash %}
 @{%
-const NonemptyClassRangesNoDash_ClassAtom = ([ClassAtom]) => ({ type: 'NonemptyClassRangesNoDash', subtype: 'ClassAtom', ClassAtom });
-const NonemptyClassRangesNoDash_NoDash = ([ClassAtomNoDash, NonemptyClassRangesNoDash]) => ({ type: 'NonemptyClassRangesNoDash', subtype: 'NoDash', ClassAtomNoDash, NonemptyClassRangesNoDash });
-const NonemptyClassRangesNoDash_NoDashDash = ([ClassAtomNoDash, d, ClassAtom, ClassRanges]) => ({ type: 'NonemptyClassRangesNoDash', subtype: 'NoDashDash', ClassAtom, ClassRanges });
+const NonemptyClassRangesNoDash_ClassAtom = ([ClassAtom]) => ({ type: 'NonemptyClassRangesNoDash', subtype: 'ClassAtom', ClassRanges: [ClassAtom] });
+const NonemptyClassRangesNoDash_NoDash = ([ClassAtomNoDash, NonemptyClassRangesNoDash]) => ({ type: 'NonemptyClassRangesNoDash', subtype: 'NoDash', ClassRanges: [ClassAtomNoDash, ...NonemptyClassRangesNoDash.ClassRanges] });
+const NonemptyClassRangesNoDash_NoDashDash = ([ClassAtomNoDash, d, ClassAtom, ClassRanges]) => ({ type: 'NonemptyClassRangesNoDash', subtype: 'NoDashDash', ClassRanges: [[ClassAtomNoDash, ClassAtom], ClassRanges.ClassRanges] });
 %}
 
 # #prod-ClassAtom
@@ -739,13 +740,15 @@ const ClassAtom_NoDash = ([ClassAtomNoDash]) => ({ type: 'ClassAtom', subtype: '
 #     SourceCharacter but not one of `\` or `]` or `-`
 #     `\` ClassEscape[?U]
 ClassAtomNoDash ->
-    %ClassAtomNoDash
-  | "\\" ClassEscape
+    %ClassAtomNoDash {% ClassAtomNoDash_SourceCharacter %}
+  | "\\" ClassEscape {% ClassAtomNoDash_ClassEscape %}
 ClassAtomNoDash_U ->
-    %ClassAtomNoDash
-  | "\\" ClassEscape_U
+    %ClassAtomNoDash {% ClassAtomNoDash_SourceCharacter %}
+  | "\\" ClassEscape_U {% ClassAtomNoDash_ClassEscape %}
 @{%
 const ClassAtomNoDash = { test: /./.test.bind(/[^\\\]\-]/u) };
+const ClassAtomNoDash_SourceCharacter = ([SourceCharacter]) => ({ type: 'ClassAtomNoDash', subtype: 'SourceCharacter', SourceCharacter });
+const ClassAtomNoDash_ClassEscape = ([ClassEscape]) => ({ type: 'ClassAtomNoDash', subtype: 'ClassEscape', ClassEscape });
 %}
 
 # #prod-ClassEscape
