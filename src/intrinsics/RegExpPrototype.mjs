@@ -30,6 +30,7 @@ import {
 } from '../value.mjs';
 import { BootstrapPrototype } from './Bootstrap.mjs';
 import { Q, X } from '../completion.mjs';
+import { CreateRegExpStringIterator } from './RegExpStringIteratorPrototype.mjs';
 import { msg } from '../helpers.mjs';
 
 // 21.2.5.2 #sec-regexp.prototype.exec
@@ -41,7 +42,7 @@ function RegExpProto_exec([string = Value.undefined], { thisValue }) {
 }
 
 // 21.2.5.2.1 #sec-regexpexec
-function RegExpExec(R, S) {
+export function RegExpExec(R, S) {
   Assert(Type(R) === 'Object');
   Assert(Type(S) === 'String');
 
@@ -142,7 +143,7 @@ function RegExpBuiltinExec(R, S) {
 }
 
 // 21.2.5.2.3 #sec-advancestringindex
-function AdvanceStringIndex(S, index, unicode) {
+export function AdvanceStringIndex(S, index, unicode) {
   Assert(Type(S) === 'String');
   index = index.numberValue();
   Assert(Number.isInteger(index) && index >= 0 && index <= (2 ** 53) - 1);
@@ -299,6 +300,35 @@ function RegExpProto_match([string = Value.undefined], { thisValue }) {
       }
     }
   }
+}
+
+// 21.2.5.8 #sec-regexp-prototype-matchall
+function RegExpProto_matchAll([string = Value.undefined], { thisValue }) {
+  const R = thisValue;
+  if (Type(R) !== 'Object') {
+    return surroundingAgent.Throw('TypeError', msg('NotATypeObject', 'RegExp', R));
+  }
+  const S = Q(ToString(string));
+  const C = Q(SpeciesConstructor(R, surroundingAgent.intrinsic('%RegExp%')));
+  const flagsValue = Q(Get(R, new Value('flags')));
+  const flags = Q(ToString(flagsValue));
+  const matcher = Q(Construct(C, [R, flags]));
+  const lastIndexValue = Q(Get(R, new Value('lastIndex')));
+  const lastIndex = Q(ToLength(lastIndexValue));
+  Q(Set(matcher, new Value('lastIndex'), lastIndex, Value.true));
+  let global;
+  if (flags.stringValue().includes('g')) {
+    global = Value.true;
+  } else {
+    global = Value.false;
+  }
+  let fullUnicode;
+  if (flags.stringValue().includes('u')) {
+    fullUnicode = Value.true;
+  } else {
+    fullUnicode = Value.false;
+  }
+  return X(CreateRegExpStringIterator(matcher, S, global, fullUnicode));
 }
 
 // 21.2.5.8 #sec-get-regexp.prototype.multiline
@@ -619,6 +649,7 @@ export function CreateRegExpPrototype(realmRec) {
       ['global', [RegExpProto_globalGetter]],
       ['ignoreCase', [RegExpProto_ignoreCaseGetter]],
       [wellKnownSymbols.match, RegExpProto_match, 1],
+      [wellKnownSymbols.matchAll, RegExpProto_matchAll, 1],
       ['multiline', [RegExpProto_multilineGetter]],
       [wellKnownSymbols.replace, RegExpProto_replace, 2],
       [wellKnownSymbols.search, RegExpProto_search, 1],
