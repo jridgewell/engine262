@@ -23,6 +23,7 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
 
   return Evaluate_Pattern(pattern);
 
+  // 21.2.2.2 #sec-pattern
   function Evaluate_Pattern(Pattern) {
     return (str, mainIndex) => {
       const mainM = Evaluate_Disjunction(Pattern.Disjunction, 1);
@@ -117,7 +118,9 @@ export function getMatcher(parsedRegex, patternCharacters, flags) {
           return RepeatMatcher(m, min2, max2, greedy, y, c, parenIndex, parenCount);
         };
         const cap = [...x.captures];
-        // TODO: For each integer k that satisfies parenIndex < k and k ≤ parenIndex + parenCount, set cap[k] to undefined.
+        for (let k = parenIndex + 1; k <= parenIndex + parenCount; k += 1) {
+          cap[k] = Value.undefined;
+        }
         const e = x.endIndex;
         const xr = new State(e, cap);
         if (min !== 0) {
