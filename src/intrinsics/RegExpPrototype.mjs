@@ -171,7 +171,7 @@ export function AdvanceStringIndex(S, index, unicode) {
   return new Value(index + 2);
 }
 
-// 21.2.5.3 #sec-get-regexp.prototype.dotall
+// 21.2.5.3 #sec-get-regexp.prototype.dotAll
 function RegExpProto_dotAllGetter(args, { thisValue }) {
   const R = thisValue;
   if (Type(R) !== 'Object') {
@@ -262,7 +262,7 @@ function RegExpProto_ignoreCaseGetter(args, { thisValue }) {
   return Value.false;
 }
 
-// 21.2.5.7 #sec-get-regexp.prototype-@@match
+// 21.2.5.7 #sec-regexp.prototype-@@match
 function RegExpProto_match([string = Value.undefined], { thisValue }) {
   const rx = thisValue;
   if (Type(rx) !== 'Object') {
@@ -350,7 +350,7 @@ function RegExpProto_multilineGetter(args, { thisValue }) {
   return Value.false;
 }
 
-// 21.2.5.9 #sec-get-regexp.prototype-@@replace
+// 21.2.5.10 #sec-regexp.prototype-@@replace
 function RegExpProto_replace([string = Value.undefined, replaceValue = Value.undefined], { thisValue }) {
   const rx = thisValue;
   if (Type(rx) !== 'Object') {
@@ -447,7 +447,7 @@ function RegExpProto_replace([string = Value.undefined, replaceValue = Value.und
   return new Value(accumulatedResult + S.stringValue().substring(nextSourcePosition));
 }
 
-// 21.2.5.10 #sec-get-regexp.prototype-@@search
+// 21.2.5.11 #sec-regexp.prototype-@@search
 function RegExpProto_search([string = Value.undefined], { thisValue }) {
   const rx = thisValue;
   if (Type(rx) !== 'Object') {
@@ -491,7 +491,7 @@ function RegExpProto_sourceGetter(args, { thisValue }) {
   return EscapeRegExpPattern(src, flags);
 }
 
-// 21.2.5.12 #sec-get-regexp.prototype-@@split
+// 21.2.5.13 #sec-regexp.prototype-@@split
 function RegExpProto_split([string = Value.undefined, limit = Value.undefined], { thisValue }) {
   const rx = thisValue;
   if (Type(rx) !== 'Object') {
@@ -594,7 +594,7 @@ function RegExpProto_stickyGetter(args, { thisValue }) {
   return Value.false;
 }
 
-// 21.2.5.14 #sec-get-regexp.prototype.test
+// 21.2.5.15 #sec-regexp.prototype.test
 function RegExpProto_test([S = Value.undefined], { thisValue }) {
   const R = thisValue;
   if (Type(R) !== 'Object') {
@@ -608,7 +608,7 @@ function RegExpProto_test([S = Value.undefined], { thisValue }) {
   return Value.false;
 }
 
-// 21.2.5.15 #sec-get-regexp.prototype.toString
+// 21.2.5.16 #sec-regexp.prototype.tostring
 function RegExpProto_toString(args, { thisValue }) {
   const R = thisValue;
   if (Type(R) !== 'Object') {
